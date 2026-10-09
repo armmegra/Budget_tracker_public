@@ -64,12 +64,20 @@ async function armed(tries = 300) {
   return false;
 }
 
+const CHOSEN = new Map();
+const readsAsUsual = Blob.prototype.text;
+File.prototype.text = function () {
+  return CHOSEN.has(this) ? Promise.resolve(CHOSEN.get(this)) : readsAsUsual.call(this);
+};
+
 async function chooseFile(text, name) {
   const input = document.getElementById("restore-file");
   const was = said().innerHTML;
   const dt = new DataTransfer();
   dt.items.add(new File([text], name, { type: "application/json" }));
   input.files = dt.files;
+  CHOSEN.clear();
+  CHOSEN.set(input.files[0], text);
   input.dispatchEvent(new Event("change"));
   if (!await settle(was)) say("the file was read at all (" + name + ")", false);
 }
