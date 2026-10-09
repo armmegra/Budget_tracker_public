@@ -1,0 +1,2725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Budget</title>
+<style>
+  :root {
+    --ink: #1c1c1e;  --dim: #6b6b70;  --rule: #d3d3d8;  --bg: #fbfbfa;
+    --green: #3f9d5a;
+    --yellow: #e5bc3c;
+    --red: #c8482f;
+    --blue: #4a8fc7;
+    --income: #e5bc3c;
+    --saved: #ffd84d;
+    --overspent: #ff4d3d;
+    --adjusted: #d8b4fe;
+    --fs-major: 16px;
+    --fs-value: 12px;
+    --fs-minor: 13.5px;
+    --fs-total: 15px;
+    --fs-limit: 13px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1300px; margin: 0 auto; }
+  .chart { overflow-x: auto; }
+  header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 20px; margin: 0 0 16px; font-weight: 600; }
+  nav { margin-left: auto; display: flex; gap: 8px; }
+  button, select, nav a {
+    font: inherit; padding: 5px 11px; border: 1px solid var(--rule); border-radius: 6px;
+    background: #fff; color: var(--ink); cursor: pointer;
+  }
+  nav a { text-decoration: none; display: inline-block; }
+  nav button[data-view="questions"] { position: relative; }
+  nav .qmark { position: absolute; right: 3px; bottom: 1px; color: #e0301e;
+               font-size: 12px; font-weight: 700; line-height: 1; pointer-events: none; }
+  button:hover, nav a:hover { border-color: var(--dim); }
+  button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .layout { display: grid; grid-template-columns: 1fr 190px; gap: 28px; align-items: start; }
+  .limits {
+    border: 1px solid var(--ink); border-radius: 4px; padding: 10px 12px;
+    font-size: 13px; line-height: 1.7;
+  }
+  .limits { font-size: var(--fs-limit); }
+  .limits h2 {
+    font-size: var(--fs-limit); margin: 0 0 4px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .colhead, .minorhead {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--dim); font-size: var(--fs-limit); margin: 0 0 6px;
+  }
+  .minorhead { margin: 0 0 8px; }
+  .minorhead span, .colhead span { letter-spacing: .04em; }
+  .sample .chart, .sample .totals, .sample .minors,
+  .sample .left, .sample .limits div { opacity: .42; }
+  .sample { pointer-events: none; }
+  .sample .colhead, .sample .minorhead, .sample .limits h2,
+  .sample .gear, .sample .pick { pointer-events: auto; }
+  .banner {
+    border: 1px solid var(--rule); border-left: 3px solid var(--green);
+    border-radius: 6px; padding: 12px 14px; margin: 0 0 18px;
+    background: #fff; font-size: 14px; line-height: 1.6;
+  }
+  .pick { cursor: pointer; border-bottom: 1px dotted var(--dim); }
+  .pick:hover { color: var(--ink); }
+  .totals { font-size: var(--fs-total); }
+  .bar-name { font-size: var(--fs-major); }
+  .bar-value { font-size: var(--fs-value); }
+  .limits div { display: flex; justify-content: space-between; gap: 12px; }
+  hr { border: 0; border-top: 1px solid var(--ink); margin: 26px 0 18px; }
+  .totals { font-variant-numeric: tabular-nums; }
+  .totals p { margin: 4px 0; }
+  .totals b { font-weight: 600; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 3px 10px; border-bottom: 1px solid var(--rule); }
+  th:first-child, td:first-child { text-align: left; }
+  .minors {
+    display: grid; grid-template-columns: max-content 1fr max-content;
+    column-gap: 18px; row-gap: 4px; align-items: baseline;
+    font-size: var(--fs-minor); font-variant-numeric: tabular-nums;
+  }
+  .minors .name { font-weight: 600; white-space: nowrap; }
+  .minors .vals { word-spacing: 1px; line-height: 1.65; }
+  .minors .sum {
+    white-space: nowrap; font-size: 1.15em; font-weight: 500; color: var(--ink);
+  }
+  .minors .sub .name, .minors .sub-name { padding-left: 26px; font-weight: 500; }
+  .muted { color: var(--dim); }
+  .left {
+    margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--rule);
+    font-size: var(--fs-left); font-variant-numeric: tabular-nums; font-weight: 500;
+  }
+  .left .muted { font-size: .65em; font-weight: 400; }
+  .left .lbl { font-size: .8em; opacity: .72; font-weight: 400; }
+  .left .lfig { cursor: pointer; text-decoration: underline dotted;
+                text-underline-offset: 3px; }
+  .left .lfig:hover { color: var(--blue); }
+  .left .lval { font-size: 12px; padding: 1px 7px; vertical-align: middle; }
+  .left input { font-size: 14px; }
+  .banner .left { font-size: 14px; margin: 8px 0 0; }
+  .q { border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; margin: 10px 0; background:#fff; }
+  .q code { background: #f2f2f4; padding: 1px 5px; border-radius: 4px; }
+  .q .ask { color: var(--dim); margin: 6px 0 10px; }
+  .q input[type=text] {
+    font: inherit; font-size: 17px; width: 15rem; max-width: 100%;
+    padding: 7px 10px; border: 1px solid var(--rule); border-radius: 6px;
+    margin-right: 6px;
+  }
+  .q input[type=text]:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
+  .q button[data-group] { font-weight: 500; }
+  .err { color: var(--red); white-space: pre-wrap; }
+  .center { text-align: center; padding: 60px 0; color: var(--dim); }
+  .gear { font-size: 16px; line-height: 1; padding: 5px 9px; }
+  #settings {
+    display: none; margin: 12px 0 4px; padding: 12px 14px;
+    background: #fff; border: 1px solid var(--rule); border-radius: 8px;
+    position: sticky; top: 8px; z-index: 5;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .09);
+    max-height: 62vh; overflow-y: auto;
+  }
+  #settings.open { display: block; }
+  #settings h2 { font-size: 13px; margin: 0 0 10px; font-weight: 600; }
+  #settings label {
+    display: inline-flex; align-items: center; gap: 7px; margin: 0 18px 8px 0; font-size: 13px;
+  }
+  #settings input[type=range] { width: 116px; }
+  #settings .shown { color: var(--dim); font-variant-numeric: tabular-nums; min-width: 44px; }
+  #settings label { margin-bottom: 10px; }
+  #settings input[type=color] {
+    width: 30px; height: 24px; padding: 0; border: 1px solid var(--rule);
+    border-radius: 4px; background: none; cursor: pointer;
+  }
+  .excluded { margin-top: 10px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .excluded span { color: var(--dim); }
+  .sub { padding-left: 26px; }
+  textarea {
+    width: 100%; min-height: 260px; padding: 10px 12px; border: 1px solid var(--rule);
+    border-radius: 8px; font: 13px/1.6 ui-monospace, Consolas, "Courier New", monospace;
+    resize: vertical;
+  }
+  .add-row { display: flex; align-items: center; gap: 10px; margin: 10px 0 14px; flex-wrap: wrap; }
+  .add-row .muted { flex-basis: 100%; margin: 0; font-size: 13px; }
+  .ok { color: var(--green); }
+  .ansd {
+    color: var(--blue); opacity: .55; cursor: pointer;
+    text-decoration: underline dotted; text-underline-offset: 3px;
+  }
+  .ansd:hover { opacity: .9; }
+  .mover {
+    position: absolute; z-index: 6; background: #fff;
+    border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .09);
+    max-width: min(340px, calc(100vw - 16px));
+  }
+  .mover code { background: #f2f2f4; padding: 1px 5px; border-radius: 4px; }
+  .mover .src-line { margin: 2px 0; }
+  .day { margin: 2px 0 8px; }
+  .day .day-date { font-weight: 600; margin-bottom: 3px; }
+  .day .day-lines {
+    position: relative; max-height: 13.5em; overflow-y: auto;
+    font-family: ui-monospace, Consolas, monospace; font-size: 14px; line-height: 1.5;
+    background: #f6f6f8; border: 1px solid var(--rule); border-radius: 6px; padding: 4px 10px;
+  }
+  .day .day-lines > * { display: block; white-space: pre-wrap; min-height: 1.5em; }
+  .day .day-lines .this {
+    font-weight: 700; color: var(--ink); font-size: 17px;
+    text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px;
+  }
+  .day .day-lines span { color: var(--dim); }
+  .mover .src-date { color: var(--dim); font-size: 13px; margin-right: 6px; }
+  .mover .ask { color: var(--dim); margin: 6px 0 10px; font-size: 13px; }
+  .mover label.pr { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .mover label.pr select { flex: 1; min-width: 0; font: inherit; padding: 3px 4px; }
+  .mover button { margin: 2px 4px 2px 0; }
+  .mover input[type=text] {
+    font: inherit; padding: 5px 8px; border: 1px solid var(--rule);
+    border-radius: 6px; margin-right: 4px;
+  }
+  .mover .muted:not(:empty) { display: block; margin-top: 6px; font-size: 13px; }
+  .mover.wide { max-width: min(520px, calc(100vw - 16px)); max-height: 62vh; overflow-y: auto; }
+  .mover .erow {
+    display: flex; align-items: center; gap: 8px; padding: 4px 0;
+    border-bottom: 1px solid var(--rule); flex-wrap: wrap;
+  }
+  .mover .erow:last-of-type { border-bottom: 0; }
+  .mover .erow b { min-width: 92px; font-weight: 600; }
+  .mover .erow .muted { display: inline; margin: 0; }
+  .mover select { padding: 3px 6px; }
+  .mover .sub-minor { padding-left: 20px; font-weight: 400; }
+  .mover h3 { font-size: 13px; margin: 10px 0 4px; font-weight: 600; }
+  .mover .staged { margin: 8px 0; padding-left: 18px; font-size: 13px; }
+  .mover .staged li { margin: 2px 0; }
+  .scope { font-size: 13px; color: var(--dim); margin: 0 0 8px; }
+  .scope b { color: var(--ink); }
+  .closed {
+    font-size: 11px; border: 1px solid var(--rule); border-radius: 10px;
+    padding: 1px 8px; color: var(--dim); margin-left: 8px; vertical-align: middle;
+  }
+  .lockbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 0 0 10px; padding: 8px 12px; font-size: 13px;
+    border: 1px solid var(--rule); border-radius: 8px; background: #fff;
+  }
+  .lockbar.open { border-color: var(--yellow); }
+  .lockbar button { padding: 3px 10px; font-size: 13px; }
+  .mover label { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+  .mover label .val { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .totals .pick { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+  .movd { background: var(--adjusted); color: #111; padding: 0 4px;
+          border-radius: 4px; cursor: pointer; }
+  .plcd { cursor: pointer; border-radius: 4px; }
+  .plcd:hover { outline: 1px dashed var(--dim); outline-offset: 1px; }
+  .setby, .picker .setby {
+    background: var(--adjusted); color: #111;
+    padding: 0 5px; border-radius: 4px; font-weight: 600;
+  }
+  .picker input.figure {
+    width: 76px; font: inherit; text-align: right; padding: 2px 6px;
+    border: 1px solid var(--rule); border-radius: 5px;
+  }
+  .picker label .val { cursor: text; }
+  .totals .pick:hover { color: var(--blue); }
+  .picker { max-width: 420px; }
+  .picker li { list-style: none; }
+  .chooser { max-width: 420px; margin: 0 auto; }
+  .chooser label {
+    display: flex; align-items: center; gap: 10px; padding: 6px 2px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chooser label .muted { margin-left: auto; }
+  .chooser .go { margin-top: 14px; }
+  .backup-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  #restore-said { margin-top: 8px; font-size: 13px; }
+  #restore-said.asking { color: var(--fg); }
+  #restore-said .final { border-color: var(--red); color: var(--red); font-weight: 600; }
+  #restore-said .final[disabled] { opacity: .45; }
+  #restore-said .file { display: block; margin-bottom: 6px; }
+  .chooser .years { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 2px; }
+  .chooser .years .lbl { align-self: center; }
+
+  .cmp { display: flex; align-items: flex-start; max-width: 100%; }
+  .cmp pre { margin: 0; }
+  .cmp .names { position: sticky; left: 0; padding-right: 4px;
+                background: var(--bg); border-right: 1px solid var(--rule); }
+  .cmp .figs { overflow-x: auto; padding-left: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Budget</h1>
+    <select id="period"></select>
+    <nav>
+      <button data-view="month" class="on">Month</button>
+      <button data-view="add">Add notes</button>
+      <button data-view="questions">Questions</button>
+      <button data-view="compare">Compare</button>
+      <button id="export" title="Save this month or the whole year for printing">Print…</button>
+      <a id="guide" class="gear" href="guide.html" target="_blank" rel="noopener"
+         title="How to use and configure this app">?</a>
+      <button id="gear" class="gear" title="Options">⚙</button>
+      <button id="signout">Sign out</button>
+    </nav>
+  </header>
+  <div id="settings">
+    <h2>Bar colours</h2>
+    <div id="swatches"></div>
+    <hr style="border-top:1px solid var(--rule); margin:12px 0">
+    <button id="reset-colours">Reset to defaults</button>
+    <hr style="border-top:1px solid var(--rule); margin:12px 0">
+    <h2>Words</h2>
+    <p class="muted" style="margin:0 0 8px; font-size:13px">
+      Teach the app a word - a shop's name, say - and lines carrying it book to
+      the group you choose, instead of being asked about every month.</p>
+    <div class="backup-row">
+      <button id="open-words">Words you teach…</button>
+    </div>
+    <hr style="border-top:1px solid var(--rule); margin:12px 0">
+    <h2>Backup</h2>
+    <p class="muted" style="margin:0 0 8px; font-size:13px">
+      One file with everything: every month's notes, every answer, the groups
+      and limits, the ticks and the figures you set yourself - and the colours
+      and sizes above, which live only in this browser.</p>
+    <div class="backup-row">
+      <button id="do-backup">Download configuration</button>
+      <button id="pick-restore">Restore from a file…</button>
+      <input type="file" id="restore-file" accept=".json,application/json" hidden>
+    </div>
+    <div id="restore-said" class="muted"></div>
+    <hr style="border-top:1px solid var(--rule); margin:12px 0">
+    <h2>Start over</h2>
+    <p class="muted" style="margin:0 0 8px; font-size:13px">
+      Colours and sizes above live in this browser. These wipe what is stored
+      in the cloud, and nothing can bring it back.</p>
+    <label><input type="radio" name="wipe" value="month">
+      <span id="wipe-month">This month</span> only - its notes, answers and ticks</label>
+    <label><input type="radio" name="wipe" value="onward">
+      <span id="wipe-onward">This month</span> and every later month</label>
+    <label><input type="radio" name="wipe" value="all">
+      Everything - months, answers, groups and limits, from scratch</label>
+    <div><button id="do-wipe" disabled>Apply</button>
+      <span id="wipe-said" class="muted"></span></div>
+  </div>
+  <div id="app"><p class="center">Loading…</p></div>
+</main>
+
+<script src="config.js"></script>
+
+<script>
+"use strict";
+
+const CFG = Object.assign({
+  domain:   "https://<pool-domain>.auth.<region>.amazoncognito.example",
+  clientId: "<app-client-id>",
+  api:      "https://<api-id>.execute-api.<region>.amazonaws.example",
+}, window.BUDGET_CONFIG || {}, {
+  redirect: window.location.origin
+    + window.location.pathname.replace(/[^/]*$/, ""),
+});
+
+const DEMO = new URLSearchParams(location.search).has("demo");
+
+const b64url = bytes =>
+  btoa(String.fromCharCode(...new Uint8Array(bytes)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+async function challenge(verifier) {
+  return b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+}
+
+function randomVerifier() {
+  return b64url(crypto.getRandomValues(new Uint8Array(48)));
+}
+
+const tokens = {
+  get()   { try { return JSON.parse(sessionStorage.getItem("tok")); } catch { return null; } },
+  set(t)  { sessionStorage.setItem("tok", JSON.stringify(t)); },
+  clear() { sessionStorage.removeItem("tok"); sessionStorage.removeItem("pkce"); },
+};
+
+async function login() {
+  const verifier = randomVerifier();
+  sessionStorage.setItem("pkce", verifier);
+  const q = new URLSearchParams({
+    client_id: CFG.clientId,
+    response_type: "code",
+    scope: "openid email",
+    redirect_uri: CFG.redirect,
+    code_challenge_method: "S256",
+    code_challenge: await challenge(verifier),
+  });
+  location.assign(`${CFG.domain}/oauth2/authorize?${q}`);
+}
+
+async function exchange(code) {
+  const verifier = sessionStorage.getItem("pkce");
+  if (!verifier) {
+    history.replaceState({}, "", location.pathname);
+    await login();
+    return new Promise(() => {});
+  }
+  const res = await fetch(`${CFG.domain}/oauth2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: CFG.clientId,
+      code,
+      redirect_uri: CFG.redirect,
+      code_verifier: verifier,
+    }),
+  });
+  if (!res.ok) throw new Error(`token exchange failed (${res.status}): ${await res.text()}`);
+  tokens.set(await res.json());
+  sessionStorage.removeItem("pkce");
+  history.replaceState({}, "", location.pathname);
+}
+
+function signOut() {
+  if (CFG.local) { location.href = "/logout"; return; }
+  tokens.clear();
+  const q = new URLSearchParams({ client_id: CFG.clientId, logout_uri: CFG.redirect });
+  location.assign(`${CFG.domain}/logout?${q}`);
+}
+
+async function call(body) {
+  if (DEMO) return demo(body);
+
+  if (CFG.local) {
+    const res = await fetch("/api", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(body),
+    });
+    if (res.status === 401) { location.href = "/login"; return new Promise(() => {}); }
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}: ${await res.text()}`);
+    const reply = await res.json();
+    if (!reply.ok) throw new Error(reply.error);
+    return reply.result;
+  }
+
+  const t = tokens.get();
+  if (!t) { await login(); return new Promise(() => {}); }
+
+  const res = await fetch(CFG.api + "/api", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + t.id_token,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (res.status === 401) { tokens.clear(); await login(); return new Promise(() => {}); }
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}: ${await res.text()}`);
+
+  const reply = await res.json();
+  if (!reply.ok) throw new Error(reply.error);
+  return reply.result;
+}
+
+const FLOOR = 10;
+const ROW_H = 38, BAR_H = 24;
+
+function labelWidth(rows) {
+  const fs = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue("--fs-major")) || 16;
+  const ctx = (labelWidth._c ||= document.createElement("canvas").getContext("2d"));
+  ctx.font = `${fs}px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+  const widest = Math.max(...rows.map(m => ctx.measureText(m.name).width), 60);
+  return Math.ceil(widest) + 18;
+}
+
+const textRoom = s => {
+  const fs = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue("--fs-value")) || 12;
+  return s.length * fs * 0.58 + 13;
+};
+
+const minSegment = perUnit =>
+  Math.max(FLOOR * perUnit, textRoom("00.0"));
+
+function fitPerUnit(measured, usable) {
+  const longest = Math.max(...measured.map(r =>
+    r.m.limit == null ? Math.abs(r.m.value) : Math.max(Math.abs(r.m.value), r.m.limit)), 1);
+  let per = usable / longest;
+  for (let pass = 0; pass < 5; pass++) {
+    const widest = Math.max(...measured.map(r =>
+      barGeometry(r.m, r.shown, r.overShown, per).total));
+    if (widest <= usable + 0.5) break;
+    per *= usable / widest;
+  }
+  return per;
+}
+
+function barGeometry(major, shown, overShown, perUnit) {
+  const limit = major.limit;
+  const value = Math.abs(major.value);
+  const unlimited = limit == null;
+
+  const spanUnits = unlimited ? value : Math.max(value, limit);
+  const greenUnits = unlimited ? value : Math.min(value, limit);
+  const redUnits = unlimited ? 0 : Math.max(0, value - limit);
+  const yellowUnits = unlimited ? 0 : Math.max(0, limit - value);
+
+  const k = Math.max(1, minSegment(perUnit) / Math.max(spanUnits * perUnit, 0.01));
+  const scale = perUnit * k;
+
+  const seg = s => textRoom(s) * 1.25;
+  let green = greenUnits * scale;
+  if (greenUnits > 0) green = Math.max(green, seg(shown));
+  let red = redUnits * scale;
+  if (redUnits > 0) red = Math.max(red, seg(overShown));
+  const yellow = yellowUnits * scale;
+
+  return { green, yellow, red, total: green + yellow + red, unlimited };
+}
+
+function svgChart(majors, available) {
+  const rows = majors.filter(m => m.chart !== false);
+  const height = rows.length * ROW_H + 8;
+
+  const labelled = rows.map(m => ({
+    m,
+    shown: (m.income ? "+" : "") + Math.abs(m.value).toFixed(1),
+    overShown: m.limit != null && Math.abs(m.value) > m.limit
+      ? "-" + (Math.abs(m.value) - m.limit).toFixed(1) : "",
+  }));
+
+  const LABEL_W = labelWidth(rows);
+  const usable = Math.max(240, available - LABEL_W - 24);
+  const per = fitPerUnit(labelled, usable);
+  const measured = labelled.map(r => ({ ...r, g: barGeometry(r.m, r.shown, r.overShown, per) }));
+  const widest = Math.max(...measured.map(r => r.g.total));
+
+  const parts = measured.map(({ m, shown, overShown, g }, i) => {
+    const y = i * ROW_H + 4;
+    const x = LABEL_W;
+    const baseline = y + BAR_H - 7;
+    if (m.value === 0) {
+      return `<text class="bar-name" x="${LABEL_W - 10}" y="${baseline}" text-anchor="end">${m.name}</text>
+              <text class="bar-value" x="${x}" y="${baseline}" fill="var(--dim)">—</text>`;
+    }
+    const colour = m.saved ? "var(--saved)"
+      : m.overspent ? "var(--overspent)"
+      : m.income ? "var(--income)" : (g.unlimited ? "var(--blue)" : "var(--green)");
+
+    let out = `<text class="bar-name" x="${LABEL_W - 10}" y="${baseline}" text-anchor="end">${m.name}</text>`;
+
+    if (!g.unlimited) {
+      out += `<rect x="${x}" y="${y}" width="${g.total}" height="${BAR_H}" rx="3"
+                fill="var(--${g.red > 0 ? "red" : "yellow"})"/>`;
+    }
+    out += `<rect x="${x}" y="${y}" width="${g.green}" height="${BAR_H}" rx="3" fill="${colour}"/>`;
+
+    out += `<text class="bar-value" x="${x + g.green - 7}" y="${baseline}"
+              text-anchor="end" fill="#fff">${shown}</text>`;
+    if (g.red > 0) {
+      out += `<text class="bar-value" x="${x + g.total - 7}" y="${baseline}"
+                text-anchor="end" fill="#fff">${overShown}</text>`;
+    }
+    return out;
+  }).join("");
+
+  const w = Math.ceil(Math.min(available, LABEL_W + widest + 24));
+  return `<svg width="${w}" height="${height}" viewBox="0 0 ${w} ${height}" role="img">${parts}</svg>`;
+}
+
+const SWATCHES = [
+  ["--green",  "Spent, within limit"],
+  ["--yellow", "Still available"],
+  ["--red",    "Over the limit"],
+  ["--blue",   "No limit set"],
+  ["--income", "Income"],
+  ["--saved",  "Totally saved"],
+  ["--overspent", "Totally overspent"],
+  ["--adjusted", "Highlight on a figure you set"],
+];
+const SIZES = [
+  ["--fs-major", "Major group names", 20, 40],
+  ["--fs-value", "Figures in the bars", 10, 30],
+  ["--fs-minor", "Minor groups", 15, 35],
+  ["--fs-left", "Left line", 15, 35],
+  ["--fs-total", "Totals", 20, 40],
+  ["--fs-limit", "Limits box", 15, 35],
+];
+const DEFAULTS = {
+  "--green": "#3f9d5a", "--yellow": "#e5bc3c", "--red": "#c8482f",
+  "--blue": "#4a8fc7", "--income": "#e5bc3c",
+  "--saved": "#ffd84d", "--adjusted": "#d8b4fe", "--overspent": "#ff4d3d",
+  "--fs-major": "25px", "--fs-value": "18px", "--fs-minor": "22px",
+  "--fs-total": "26px", "--fs-limit": "19px", "--fs-left": "22px",
+};
+
+function applyOptions(saved) {
+  for (const [k, v] of Object.entries({ ...DEFAULTS, ...saved })) {
+    document.documentElement.style.setProperty(k, v);
+  }
+}
+
+function initOptions(onChange) {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem("options")) || {}; } catch { saved = {}; }
+  applyOptions(saved);
+
+  const value = k => saved[k] || DEFAULTS[k];
+
+  const paint = () => {
+    applyOptions(saved);
+    document.getElementById("swatches").innerHTML =
+      SWATCHES.map(([key, label]) =>
+        `<label><input type="color" data-key="${key}" value="${value(key)}"> ${label}</label>`
+      ).join("") +
+      `<h2 style="margin-top:14px">Text sizes</h2>` +
+      SIZES.map(([key, label, min, max]) =>
+        `<label>${label}
+           <input type="range" data-key="${key}" data-unit="px" min="${min}" max="${max}"
+                  step="0.5" value="${parseFloat(value(key))}">
+           <span class="shown" data-for="${key}">${parseFloat(value(key))}px</span>
+         </label>`
+      ).join("");
+
+    document.querySelectorAll("#swatches input").forEach(input => {
+      input.oninput = () => {
+        const key = input.dataset.key;
+        saved[key] = input.dataset.unit ? input.value + input.dataset.unit : input.value;
+        localStorage.setItem("options", JSON.stringify(saved));
+        applyOptions(saved);
+        const shown = document.querySelector(`.shown[data-for="${key}"]`);
+        if (shown) shown.textContent = saved[key];
+        if (key === "--fs-value" || key === "--fs-major") onChange();
+      };
+    });
+  };
+  paint();
+
+  document.getElementById("reset-colours").onclick = () => {
+    saved = {};
+    localStorage.removeItem("options");
+    paint();
+    onChange();
+  };
+
+  wireBackup(() => saved, next => {
+    saved = next;
+    if (Object.keys(saved).length) localStorage.setItem("options", JSON.stringify(saved));
+    else localStorage.removeItem("options");
+    paint();
+  }, onChange);
+
+  document.getElementById("gear").onclick = () =>
+    document.getElementById("settings").classList.toggle("open");
+  document.getElementById("open-words").onclick = ev =>
+    configMenu(ev.currentTarget, "words");
+
+  const wipeBtn = document.getElementById("do-wipe");
+  const wipeSaid = document.getElementById("wipe-said");
+  const disarm = () => {
+    wipeBtn.hidden = false;
+    wipeSaid.className = "muted";
+    wipeSaid.textContent = "";
+  };
+  document.querySelectorAll("input[name=wipe]").forEach(r => {
+    r.onchange = () => { wipeBtn.disabled = false; disarm(); };
+  });
+  const namePeriod = () => {
+    const period = document.getElementById("period").value;
+    const here = PERIODS.find(p => p.month === period);
+    const label = here ? `${here.month}${here.year ? " " + here.year : ""}` : period;
+    ["wipe-month", "wipe-onward"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && label) el.textContent = label;
+    });
+  };
+  document.getElementById("period").addEventListener("change", namePeriod);
+  document.getElementById("gear").addEventListener("click", () => { namePeriod(); disarm(); });
+  wipeBtn.onclick = () => {
+    const choice = document.querySelector("input[name=wipe]:checked");
+    if (!choice) return;
+    wipeBtn.hidden = true;
+    wipeSaid.className = "muted";
+    wipeSaid.innerHTML = `This cannot be undone.
+      <button id="wipe-yes">Yes, delete it</button>
+      <button id="wipe-no">No, keep everything</button>`;
+    document.getElementById("wipe-no").onclick = disarm;
+    document.getElementById("wipe-yes").onclick = () => wipe(choice);
+  };
+
+  const wipe = async (choice) => {
+    wipeSaid.innerHTML = "";
+    wipeSaid.textContent = "Wiping…";
+    try {
+      const period = document.getElementById("period").value;
+      const body = { action: "reset", scope: choice.value, confirm: "RESET" };
+      if (choice.value !== "all") Object.assign(body, unlocked(period, { period }));
+      const r = await call(body);
+      disarm();
+      wipeSaid.className = "ok";
+      const NAMES = { months: "month", answers: "answer",
+                      group_edits: "group edit", scoped_edits: "scoped edit" };
+      const gone = Object.entries(r.wiped)
+        .filter(([, v]) => v > 0)
+        .map(([k, v]) => `${v} ${NAMES[k] || k}${v === 1 ? "" : "s"}`);
+      wipeSaid.textContent = (gone.length ? "Wiped " + gone.join(", ") : "Nothing to wipe") +
+        (r.months && r.months.length ? ` (${r.months.join(", ")})` : "") + ".";
+      choice.checked = false;
+      PERIODS = await call({ action: "periods" });
+      fillPeriods();
+      render();
+    } catch (e) {
+      disarm();
+      wipeSaid.className = "err";
+      wipeSaid.textContent = e.message || String(e);
+    } finally {
+      wipeBtn.disabled = false;
+      wipeBtn.hidden = false;
+    }
+  };
+
+  document.getElementById("export").onclick = ev => exportPopup(ev.currentTarget);
+}
+
+const BACKUP_KIND = "budget-backup";
+
+function wireBackup(readOptions, writeOptions, onChange) {
+  const said = document.getElementById("restore-said");
+  const file = document.getElementById("restore-file");
+  const pick = document.getElementById("pick-restore");
+  const grab = document.getElementById("do-backup");
+
+  const quiet = (text) => {
+    said.className = "muted";
+    said.style.minHeight = "";
+    said.textContent = text || "";
+  };
+
+  grab.onclick = async () => {
+    quiet("Collecting…");
+    grab.disabled = true;
+    try {
+      const server = await call({ action: "backup" });
+      server.page = { options: readOptions() };
+      const day = (server.saved || "").slice(0, 10) || "today";
+      download(`budget-backup-${day}.json`, JSON.stringify(server, null, 1),
+               "application/json");
+      said.className = "ok";
+      said.textContent = `Saved ${server.months} month(s) and `
+        + `${server.answers} answer(s), with your colours and sizes.`;
+    } catch (e) {
+      said.className = "err";
+      said.textContent = e.message || String(e);
+    } finally {
+      grab.disabled = false;
+    }
+  };
+
+  pick.onclick = () => { file.value = ""; file.click(); };
+
+  file.onchange = async () => {
+    const chosen = file.files[0];
+    if (!chosen) return;
+    let backup;
+    try {
+      backup = JSON.parse(await chosen.text());
+    } catch {
+      said.className = "err";
+      said.textContent = `${chosen.name} is not readable as JSON.`;
+      return;
+    }
+    if (!backup || backup.kind !== BACKUP_KIND) {
+      said.className = "err";
+      said.textContent = `${chosen.name} is not a budget backup.`;
+      return;
+    }
+    ask(chosen.name, backup);
+  };
+
+  function ask(name, backup) {
+    const when = (backup.saved || "").slice(0, 10);
+    said.className = "muted asking";
+    said.innerHTML = `<b class="file">${esc(name)}</b>
+      ${backup.months ?? "?"} month(s), ${backup.answers ?? "?"} answer(s)${
+        when ? `, saved ${esc(when)}` : ""}.
+      This replaces <b>everything</b> stored - every month, every answer, the
+      groups and limits. Are you sure?
+      <button data-go="apply">Apply</button>
+      <button data-go="cancel">Cancel</button>`;
+    said.querySelector("[data-go=cancel]").onclick = () => quiet();
+    said.querySelector("[data-go=apply]").onclick = () => confirmFinally(backup);
+    said.style.minHeight = said.offsetHeight + "px";
+  }
+
+  function confirmFinally(backup) {
+    said.className = "muted asking";
+    said.innerHTML = `Nothing brings back what is stored now.
+      <button data-go="cancel">Cancel</button>
+      <button class="final" data-go="yes" disabled>Final irreversible Yes</button>`;
+    const yes = said.querySelector("[data-go=yes]");
+    said.querySelector("[data-go=cancel]").onclick = () => quiet();
+    yes.onclick = () => go(backup);
+    setTimeout(() => { yes.disabled = false; }, 700);
+  }
+
+  async function go(backup) {
+    quiet("Restoring…");
+    let r;
+    try {
+      r = await call({ action: "restore", backup, confirm: "RESTORE" });
+    } catch (e) {
+      said.className = "err";
+      said.textContent = e.message || String(e);
+      return;
+    }
+    const options = (backup.page && backup.page.options) || {};
+    writeOptions(cleanOptions(options));
+    const done = `Restored ${r.restored.months} month(s) and `
+      + `${r.restored.answers} answer(s).`
+      + (r.rules === "different"
+        ? " The file was made with different rules from this app's, so its months"
+          + " read here by this app's own rules."
+        : "");
+    try {
+      PERIODS = await call({ action: "periods" });
+      fillPeriods();
+      UNLOCKED.clear();
+      COMPARE_PICK = null;
+      said.className = "ok";
+      said.textContent = done;
+      onChange();
+    } catch (e) {
+      said.className = "err";
+      said.textContent = `${done} Reloading the page failed - `
+        + `refresh to see it: ${e.message || String(e)}`;
+    }
+  }
+
+  function cleanOptions(options) {
+    if (!options || typeof options !== "object" || Array.isArray(options)) return {};
+    const allowed = new Set([...SWATCHES, ...SIZES].map(o => o[0]));
+    const out = {};
+    for (const [key, value] of Object.entries(options)) {
+      if (!allowed.has(key) || typeof value !== "string") continue;
+      if (/^#[0-9a-fA-F]{6}$/.test(value) || /^\d{1,3}(\.\d)?px$/.test(value)) {
+        out[key] = value;
+      }
+    }
+    return out;
+  }
+}
+
+function download(name, body, type) {
+  const bom = type.startsWith("text/plain") ? String.fromCharCode(0xFEFF) : "";
+  const url = URL.createObjectURL(new Blob([bom + body], { type }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function comparePrintPopup(anchor) {
+  document.querySelectorAll(".mover").forEach(el => el.remove());
+  if (!LAST) return;
+  const pop = document.createElement("div");
+  pop.className = "mover";
+  pop.innerHTML = `
+    <p class="ask">${LAST.months.length} month(s), laid out for A4. More than
+      about five to a page and it continues on the next - each one repeating the
+      group names, so every page can be read on its own.</p>
+    <button data-fmt="rtf">Word (.rtf)</button>
+    <button data-fmt="txt">Text (.txt)</button>
+    <button data-cancel="1">Cancel</button>
+    <span class="muted"></span>`;
+  document.body.appendChild(pop);
+  placePopup(pop, anchor);
+
+  pop.querySelectorAll("button").forEach(btn => {
+    btn.onclick = async () => {
+      if (btn.dataset.cancel) return pop.remove();
+      const said = pop.querySelector(".muted");
+      said.className = "muted";
+      said.textContent = "Building…";
+      pop.querySelectorAll("button").forEach(b => (b.disabled = true));
+      try {
+        const r = await call({
+          action: "export", format: btn.dataset.fmt,
+          periods: LAST.months, average: LAST.average,
+          year: new Date().getFullYear(),
+        });
+        download(r.name, r.body,
+          r.format === "rtf" ? "application/rtf" : "text/plain;charset=utf-8");
+        pop.remove();
+      } catch (e) {
+        said.className = "err";
+        said.textContent = e.message || String(e);
+        pop.querySelectorAll("button").forEach(b => (b.disabled = false));
+      }
+    };
+  });
+}
+
+function placePopup(pop, anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const room = Math.min(348, innerWidth - 8);
+  pop.style.top = `${rect.bottom + scrollY + 6}px`;
+  pop.style.left = `${Math.max(8, Math.min(rect.left + scrollX, scrollX + innerWidth - room))}px`;
+  const onKey = e => { if (e.key === "Escape") close(); };
+  const onDoc = e => {
+    const on = document.activeElement;
+    if (on && on.tagName === "SELECT" && pop.contains(on)) return;
+    if (!pop.contains(e.target) && e.target !== anchor) close();
+  };
+  function close() {
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("pointerdown", onDoc, true);
+    pop.remove();
+  }
+  document.addEventListener("keydown", onKey);
+  document.addEventListener("pointerdown", onDoc, true);
+  return close;
+}
+
+function exportPopup(anchor) {
+  document.querySelectorAll(".mover").forEach(el => el.remove());
+  const here = PERIODS.find(p => p.month === document.getElementById("period").value);
+  const years = [...new Set(PERIODS.map(p => p.year).filter(Boolean))].sort();
+  const start = here && here.year ? here.year : years[years.length - 1];
+
+  const pop = document.createElement("div");
+  pop.className = "mover";
+  pop.innerHTML = `
+    <p class="ask">Two A4 pages per month: majors and totals, then minor groups
+      and the Left line. Answered figures print underlined.</p>
+    ${years.length ? `<label class="pr">Year
+      <select id="pr-year">${years.map(y =>
+        `<option value="${y}"${y === start ? " selected" : ""}>${y}</option>`).join("")}
+      </select></label>` : ""}
+    <label class="pr">Print <select id="pr-what"></select></label>
+    <button data-fmt="rtf">Word (.rtf)</button>
+    <button data-fmt="txt">Text (.txt)</button>
+    <button data-cancel="1">Cancel</button>
+    <span class="muted"></span>`;
+  document.body.appendChild(pop);
+
+  const yearSel = pop.querySelector("#pr-year");
+  const whatSel = pop.querySelector("#pr-what");
+  const chosenYear = () => (yearSel ? Number(yearSel.value) : years[0]);
+  const fillWhat = (prefer) => {
+    const y = chosenYear();
+    const mine = y ? PERIODS.filter(p => p.year === y) : PERIODS;
+    whatSel.innerHTML =
+      (y ? `<option value="">All ${y} — every month</option>` : "") +
+      mine.map(p => `<option value="${esc(p.month)}">${esc(p.month)}${
+        p.year ? " " + p.year : ""} (${p.days} days)</option>`).join("") +
+      (y ? PERIODS.filter(p => !p.year).map(p =>
+        `<option value="${esc(p.month)}">${esc(p.month)} — no year recorded</option>`).join("") : "");
+    if (prefer && [...whatSel.options].some(o => o.value === prefer)) whatSel.value = prefer;
+  };
+  fillWhat(here && here.month);
+  if (yearSel) yearSel.onchange = () => fillWhat(null);
+
+  const rect = anchor.getBoundingClientRect();
+  const room = Math.min(348, innerWidth - 8);
+  pop.style.top = `${rect.bottom + scrollY + 6}px`;
+  pop.style.left = `${Math.max(8, Math.min(rect.left + scrollX, scrollX + innerWidth - room))}px`;
+
+  const onKey = e => { if (e.key === "Escape") close(); };
+  const onDoc = e => {
+    const on = document.activeElement;
+    if (on && on.tagName === "SELECT" && pop.contains(on)) return;
+    if (!pop.contains(e.target) && e.target !== anchor) close();
+  };
+  function close() {
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("pointerdown", onDoc, true);
+    pop.remove();
+  }
+  document.addEventListener("keydown", onKey);
+  document.addEventListener("pointerdown", onDoc, true);
+
+  if (!years.length) {
+    pop.querySelector(".muted").textContent =
+      "Whole-year printing needs the year recorded - re-import a month to set it.";
+  }
+
+  pop.querySelectorAll("button").forEach(btn => {
+    btn.onclick = async () => {
+      if (btn.dataset.cancel) return close();
+      const said = pop.querySelector(".muted");
+      said.className = "muted";
+      said.textContent = "Building…";
+      pop.querySelectorAll("button").forEach(b => (b.disabled = true));
+      const body = { action: "export", format: btn.dataset.fmt,
+                     year: chosenYear() || new Date().getFullYear() };
+      if (whatSel.value) body.period = whatSel.value;
+      try {
+        const r = await call(body);
+        download(r.name, r.body,
+          r.format === "rtf" ? "application/rtf" : "text/plain;charset=utf-8");
+        close();
+      } catch (e) {
+        said.className = "err";
+        said.textContent = e.message || String(e);
+        pop.querySelectorAll("button").forEach(b => (b.disabled = false));
+      }
+    };
+  });
+}
+
+const app = () => document.getElementById("app");
+function leftLine(src, editable, typed = false) {
+  const head = editable
+    ? `<b class="pick" id="edit-left"
+         title="rename this line, or add and remove its figures">Left</b>: `
+    : "Left: ";
+  if (!src.cells) return esc(src.text || src.raw || "");
+  const figure = c => (typed ? leftFigure(c) : esc(c.figure));
+  return head + src.cells.map(c =>
+    c.place === "after"
+      ? `${figure(c)}<span class="lbl">${esc(c.join + c.label)}</span>`
+      : (c.label ? `<span class="lbl">${esc(c.label + c.join)}</span>` : "") + figure(c)
+  ).join(", ");
+}
+
+function leftFigure(c) {
+  if (!c.id) return esc(c.figure);
+  const slot = esc(c.id);
+  if (!c.set && (c.value === null || c.value === undefined)) {
+    return `<button class="lval" data-slot="${slot}"
+      title="type this figure yourself">value…</button>`;
+  }
+  const title = c.set
+    ? `you set this; the notes make it ${c.noted} - click to change it`
+    : "click to type this figure yourself";
+  return `<span class="lfig${c.set ? " setby" : ""}" data-slot="${slot}"
+    data-value="${c.value === null || c.value === undefined ? "" : esc(c.value)}"
+    title="${esc(title)}">${esc(c.figure)}</span>`;
+}
+
+function leftNote(left) {
+  if (left.computed) {
+    return `(recounted: ${esc(left.date)}'s Left + ${left.days_after} newer day${
+      left.days_after === 1 ? "" : "s"})`;
+  }
+  if (left.counted_on) {
+    return left.counted_from === "start"
+      ? "(counted on from your starting figures)"
+      : "(counted on from the month before)";
+  }
+  if (left.blank) return "(these notes carry no closing line)";
+  return "";
+}
+
+function leftValueInput(el, period) {
+  const slot = el.dataset.slot;
+  const box = document.createElement("span");
+  box.innerHTML = `<input type="text" size="9" inputmode="decimal" placeholder="a figure">
+    <button data-go="1">OK</button>
+    ${el.classList.contains("setby") ? `<button data-back="1">Back to the notes' figure</button>` : ""}`;
+  el.replaceWith(box);
+  const input = box.querySelector("input");
+  input.value = el.dataset.value || "";
+  input.focus();
+  const said = app().querySelector("#left-said");
+  let sent = false;
+  const send = async value => {
+    if (sent) return;
+    sent = true;
+    const body = { action: "left_value", slot, value };
+    if (period) body.period = period;
+    try {
+      await call(period ? unlocked(period, body) : body);
+      render();
+    } catch (e) {
+      sent = false;
+      if (said) {
+        said.className = "said err";
+        said.textContent = period ? closedMsg(e, period) : (e.message || String(e));
+      }
+    }
+  };
+  const go = () => {
+    const typed = input.value.trim().replace(/\s+/g, "").replace(",", ".");
+    const value = Number(typed);
+    if (!typed || !Number.isFinite(value)) {
+      if (said) {
+        said.className = "said err";
+        said.textContent = "Type a number.";
+      }
+      return;
+    }
+    send(value);
+  };
+  box.querySelector("[data-go]").onclick = go;
+  const back = box.querySelector("[data-back]");
+  if (back) back.onclick = () => send(null);
+  input.onkeydown = e => {
+    if (e.key === "Enter") { e.preventDefault(); go(); }
+  };
+}
+
+function markQuestions(n) {
+  const btn = document.querySelector('nav button[data-view="questions"]');
+  if (!btn) return;
+  let mark = btn.querySelector(".qmark");
+  if (n > 0) {
+    if (!mark) {
+      mark = document.createElement("span");
+      mark.className = "qmark";
+      mark.setAttribute("aria-hidden", "true");
+      mark.textContent = "!";
+      btn.appendChild(mark);
+    }
+    btn.title = `${n} unanswered question${n === 1 ? "" : "s"}.`;
+  } else {
+    if (mark) mark.remove();
+    btn.removeAttribute("title");
+  }
+}
+
+async function refreshMark(period) {
+  if (!period || !PERIODS.length) return markQuestions(0);
+  try { markQuestions((await call({ action: "questions", period })).length); }
+  catch (e) { markQuestions(0); }
+}
+
+const esc = s => String(s).replace(/[<>&"]/g,
+  c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+
+function wireEditors() {
+  for (const [id, target] of [["edit-majors", "majors"], ["edit-limits", "limits"],
+                              ["edit-minors", "minors"], ["edit-left", "left"]]) {
+    const el = app().querySelector("#" + id);
+    if (!el) continue;
+    if (DEMO) {
+      if (el.tagName === "BUTTON") el.style.display = "none";
+      else el.classList.remove("pick");
+      continue;
+    }
+    el.onclick = () => configMenu(el, target);
+  }
+}
+
+const SAMPLE = {
+  majors: [
+    { name: "Home", value: 7.1, limit: 8, income: false, chart: true },
+    { name: "Groceries", value: 12.6, limit: 14, income: false, chart: true },
+    { name: "Getting about", value: 3.5, limit: 5, income: false, chart: true },
+    { name: "Bills", value: 3.3, limit: 3, income: false, chart: true },
+    { name: "Health", value: 1.1, limit: 2, income: false, chart: true },
+    { name: "Meals out", value: 2.6, limit: 3, income: false, chart: true },
+    { name: "Hobbies", value: 1.7, limit: null, income: false, chart: true },
+    { name: "Totally saved", value: 5.1, limit: null, income: false, chart: true, saved: true },
+    { name: "Totally overspent", value: 0.3, limit: null, income: false, chart: true, overspent: true },
+  ],
+  limits: [
+    { label: "Home", value: 8 }, { label: "Groceries", value: 14 }, { label: "Getting about", value: 5 },
+    { label: "Bills", value: 3 }, { label: "Health", value: 2 }, { label: "Meals out", value: 3 },
+  ],
+  minors: [
+    { name: "market", amounts: [385, 1120, 295, 870, 1375, 235, 690, 980, 465,
+                                   770, 1230, 585,
+                                   910, 790], total: 10700 },
+    { name: "bakery", amounts: [69, 58, 72, 61, 69, 56, 65], total: 450 },
+    { name: "delivery", amounts: [310, 275, 290, 245, 330], total: 1450 },
+    { name: "fuel", amounts: [610, 690, 540, 570, 648], total: 3058 },
+    { name: "bus", amounts: [26, 26, 52, 26, 78, 26, 52, 26, 26, 52, 26, 26], total: 442 },
+    { name: "rent", amounts: [7100], total: 7100 },
+    { name: "water", amounts: [430, 420], total: 850 },
+    { name: "broadband", amounts: [520, 520], total: 1040 },
+    { name: "insurance", amounts: [470, 470, 470], total: 1410 },
+    { name: "chemist", amounts: [165, 290, 225, 135, 190, 95], total: 1100 },
+    { name: "cafes", amounts: [390, 640, 310, 470, 265, 305, 220], total: 2600 },
+    { name: "hobbies", amounts: [510, 350, 230, 290, 180, 140], total: 1700 },
+  ],
+  totals: { necessary: 30.2, appended: 1.7, grand: 31.9 },
+  left: { cells: [
+    { figure: "61 240", label: "account", place: "before", join: " " },
+    { figure: "6.8", label: "purse", place: "before", join: " " },
+  ] },
+};
+
+async function viewEmpty() {
+  markQuestions(0);
+  let start = null;
+  try { start = ((await call({ action: "config" })).left || {}).start || null; }
+  catch (e) { start = null; }
+  const d = SAMPLE;
+  const limits = d.limits.map(l =>
+    `<div><span>${esc(l.label)}</span><span>${l.value}</span></div>`).join("");
+  const minors = d.minors.map(m =>
+    `<div class="name">${esc(m.name)}:</div>
+     <div class="vals">${m.amounts.join(", ")}</div>
+     <div class="sum">: ${m.total}</div>`).join("");
+
+  app().innerHTML = `
+    <div class="banner">
+      <b>Nothing has been added yet — this is an example.</b>
+      Everything below is invented, to show what a month looks like once you
+      paste one in. Use <b>Add notes</b> to add your first, or start by shaping
+      the groups to your own life: the
+      <span class="gear" style="padding:0 6px">⋯</span> buttons below are live
+      and work now, before you have any data.
+      <a href="guide.html" target="_blank" rel="noopener">The guide</a> explains
+      both, and everything else on this page.
+      ${start && start.cells ? `<p class="left">Where your money stands now, before any
+        month: ${leftLine(start, false, true)} <span id="left-said" class="said"></span></p>` : ""}
+    </div>
+    <div class="sample">
+      <div class="layout">
+        <div class="chart-col">
+          <div class="colhead">
+            <button id="edit-majors" class="gear"
+              title="Add, rename or remove major groups">⋯</button>
+            <span>major groups</span>
+          </div>
+          <div class="chart"></div>
+        </div>
+        <div class="limits">
+          <h2><button id="edit-limits" class="gear"
+            title="Add a limit, change its value, or point it at another group">⋯</button>
+            <span>Limits</span></h2>${limits}
+        </div>
+      </div>
+      <hr>
+      <div class="totals">
+        <p><b>Total:</b> ${d.totals.necessary.toFixed(1)}</p>
+        <p><b>Total</b>: ${d.totals.necessary.toFixed(1)} + Hobbies
+          ${d.totals.appended.toFixed(1)} : <b>${d.totals.grand.toFixed(1)}</b></p>
+      </div>
+      <hr>
+      <div class="minorhead">
+        <button id="edit-minors" class="gear"
+          title="Add or rename a minor group, or move it under another major">⋯</button>
+        <span>minor groups</span>
+      </div>
+      <div class="minors">${minors}</div>
+      <p class="left">${leftLine(d.left, true)}</p>
+    </div>`;
+
+  const paint = () => {
+    const box = app().querySelector(".chart");
+    if (box) box.innerHTML = svgChart(d.majors, box.clientWidth || 700);
+  };
+  paint();
+  CHART_REPAINT = paint;
+  wireEditors();
+  app().querySelectorAll(".banner [data-slot]").forEach(el => {
+    el.onclick = () => leftValueInput(el, null);
+  });
+}
+
+async function viewMonth(period) {
+  const d = await call({ action: "totals", period, year: new Date().getFullYear() });
+  markQuestions(d.questions);
+
+  const limits = d.limits.map(l =>
+    `<div><span>${esc(l.label)}</span><span>${l.value}</span></div>`).join("");
+
+  const counted = d.appended.filter(a => a.counted !== false);
+  const tail = d.appended.length
+    ? `<p><b class="pick" id="pick-appended"
+           title="choose which occasional groups this Total counts">Total</b>:
+       ${d.totals.necessary.toFixed(1)}` +
+      (counted.length
+        ? " + " + counted.map(a => a.adjusted
+            ? `<span class="setby" title="you set this; the notes make it ${a.actual.toFixed(1)}"
+               >${esc(a.name)} ${a.value.toFixed(1)}</span>`
+            : `${esc(a.name)} ${a.value.toFixed(1)}`).join(" + ")
+        : "") +
+      ` : <b>${d.totals.grand.toFixed(1)}</b></p>`
+    : "";
+
+  const amounts = (list, marks = []) => list.length
+    ? list.map((v, i) => {
+        const shown = v < 0 ? `+${-v}` : String(v);
+        const src = marks[i];
+        if (!src) return shown;
+        const kinds = new Set(src.map(m => m.kind));
+        const cls = kinds.has("answered") ? "ansd" : kinds.has("moved") ? "movd" : "plcd";
+        const title = kinds.has("answered")
+          ? "booked by your answer — click to move it"
+          : kinds.has("moved") ? "moved by you — click to move it again, or put it back"
+          : "click to move this to another group";
+        return `<span class="${cls}" data-src="${encodeURIComponent(JSON.stringify(src))}"
+               title="${title}">${shown}</span>`;
+      }).join(", ")
+    : "—";
+
+  const row = (name, data, indent = false) =>
+    `<div class="name${indent ? " sub-name" : ""}">${esc(name)}:</div>
+     <div class="vals">${amounts(data.amounts, data.marks || [])}</div>
+     <div class="sum">: ${data.total}</div>`;
+
+  const minors = d.minors.map(m => m.subgroups
+    ? `<div class="name">${esc(m.name)}:</div><div class="vals"></div>
+       <div class="sum">: ${m.total}</div>` +
+      m.subgroups.map(s => row(s.name, s, true)).join("")
+    : row(m.name, m)
+  ).join("");
+
+  app().innerHTML = `
+    <div class="layout">
+      <div class="chart-col">
+        <div class="colhead">
+          <button id="edit-majors" class="gear"
+            title="Add, rename or remove major groups">⋯</button>
+          <span>major groups</span>
+        </div>
+        <div class="chart"></div>
+      </div>
+      <div class="limits">
+        <h2><button id="edit-limits" class="gear"
+          title="Add a limit, change its value, or point it at another group">⋯</button>
+          <span>Limits</span></h2>${limits}
+      </div>
+    </div>
+    <hr>
+    <div class="totals">
+      <p><b>Total:</b> ${d.totals.necessary.toFixed(1)}</p>
+      ${tail}
+    </div>
+    <hr>
+    <div class="minorhead">
+      <button id="edit-minors" class="gear"
+        title="Add or rename a minor group, or move it under another major">⋯</button>
+      <span>minor groups</span>
+    </div>
+    <div class="minors">${minors}</div>
+    ${d.left ? `<p class="left">${leftLine(d.left.computed || d.left, true, true)}${
+        leftNote(d.left) ? ` <span class="muted">${leftNote(d.left)}</span>` : ""}
+        <span id="left-said" class="said"></span></p>` : ""}
+    ${d.questions ? `<p class="muted">${d.questions} unanswered question${d.questions === 1 ? "" : "s"}.</p>` : ""}
+  `;
+
+  const paint = () => {
+    const box = app().querySelector(".chart");
+    if (box) box.innerHTML = svgChart(d.majors, box.clientWidth || 700);
+  };
+  paint();
+  CHART_REPAINT = paint;
+
+  app().querySelectorAll(".left [data-slot]").forEach(el => {
+    el.onclick = () => leftValueInput(el, period);
+  });
+
+  app().querySelectorAll(".ansd, .movd, .plcd").forEach(el => {
+    el.onclick = () =>
+      moverPopup(el, JSON.parse(decodeURIComponent(el.dataset.src)), period);
+  });
+
+  if (d.closed || UNLOCKED.has(period)) {
+    const open = UNLOCKED.has(period);
+    const layout = app().querySelector(".layout");
+    if (layout) {
+      layout.insertAdjacentHTML("beforebegin", `
+      <div class="lockbar${open ? " open" : ""}">
+        <span>${open
+          ? `<b>${esc(period)} is unlocked.</b> Changes you make now are saved
+             for good - it is the unlock that lapses when you reload.`
+          : `<b>${esc(period)} is closed.</b> Months close three months after
+             they end, so an old figure cannot be changed by a stray click.`}</span>
+        <button id="lock-toggle">${open ? "Lock again" : "Unlock this month"}</button>
+        <span id="lock-said" class="muted"></span>
+      </div>`);
+      const toggle = document.getElementById("lock-toggle");
+      const said = document.getElementById("lock-said");
+      toggle.onclick = () => {
+        if (open) { UNLOCKED.delete(period); return render(); }
+        toggle.hidden = true;
+        said.className = "muted";
+        said.innerHTML = `This month may already have been printed - correcting
+          it changes those figures.
+          <button id="lock-yes">Yes, unlock it</button>
+          <button id="lock-no">No, leave it closed</button>`;
+        document.getElementById("lock-no").onclick = () => {
+          toggle.hidden = false;
+          said.className = "muted";
+          said.textContent = "";
+        };
+        document.getElementById("lock-yes").onclick = () => {
+          UNLOCKED.add(period);
+          render();
+        };
+      };
+    }
+  }
+
+  const pick = app().querySelector("#pick-appended");
+  if (pick) pick.onclick = () => appendedPicker(pick, d.appended, period);
+
+  wireEditors();
+}
+
+function editorCard(anchor, wide) {
+  document.querySelectorAll(".mover").forEach(el => el.remove());
+  const pop = document.createElement("div");
+  pop.className = wide ? "mover wide" : "mover";
+  document.body.appendChild(pop);
+  const rect = anchor.getBoundingClientRect();
+  const room = Math.min(wide ? 528 : 348, innerWidth - 8);
+  pop.style.top = `${rect.bottom + scrollY + 6}px`;
+  pop.style.left = `${Math.max(8, Math.min(rect.left + scrollX - (wide ? 200 : 0), scrollX + innerWidth - room))}px`;
+  const onKey = e => { if (e.key === "Escape" && !pop.dataset.busy) close(); };
+  const onDoc = e => {
+    if (!pop.dataset.busy && !pop.contains(e.target) && e.target !== anchor) close();
+  };
+  function close() {
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("pointerdown", onDoc, true);
+    const dirty = pop.dataset.dirty;
+    pop.remove();
+    if (dirty) render();
+  }
+  document.addEventListener("keydown", onKey);
+  document.addEventListener("pointerdown", onDoc, true);
+  return { pop, close };
+}
+
+async function freshAppended(period) {
+  const d = await call({ action: "totals", period, year: new Date().getFullYear() });
+  return d.appended;
+}
+
+function appendedPicker(anchor, appended, period) {
+  const { pop, close } = editorCard(anchor, false);
+  pop.classList.add("picker");
+  pop.innerHTML = `
+    <p class="ask">Counted in the second Total:</p>
+    ${appended.map(a => `
+      <label><input type="checkbox" data-id="${esc(a.id || a.name)}"
+        ${a.counted === false ? "" : "checked"}>
+        ${esc(a.name)}<span class="val${a.adjusted ? " setby" : ""}"
+          data-id="${esc(a.id || a.name)}" data-actual="${a.actual ?? a.value}"
+          title="click to set a different figure">${a.value.toFixed(1)}</span></label>`).join("")}
+    <p class="ask">Click a figure to set a different one - the group's own bar
+      keeps what the notes say.</p>
+    <button data-act="apply">Apply</button>
+    <button data-act="cancel">Cancel</button>
+    <span class="said muted"></span>`;
+
+  pop.querySelectorAll(".val").forEach(cell => {
+    cell.onclick = () => {
+      if (pop.dataset.busy) return;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "figure";
+      input.value = cell.textContent.trim();
+      cell.replaceWith(input);
+      input.focus();
+      input.select();
+      const done = async () => {
+        const typed = input.value.trim();
+        const actual = Number(cell.dataset.actual);
+        const value = typed === "" ? null : Number(typed);
+        if (typed !== "" && !Number.isFinite(value)) { input.focus(); return; }
+        try {
+          await call(unlocked(period, {
+            action: "adjust", period, group: cell.dataset.id,
+            value: value === null || value === actual ? null : value,
+          }));
+          pop.dataset.dirty = "1";
+          appendedPicker(anchor, await freshAppended(period), period);
+        } catch (e) {
+          const said = pop.querySelector(".said");
+          said.className = "said err";
+          said.textContent = closedMsg(e, period);
+          input.replaceWith(cell);
+        }
+      };
+      input.onblur = done;
+      input.onkeydown = e => {
+        if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+        if (e.key === "Escape") { input.replaceWith(cell); }
+      };
+    };
+  });
+
+  pop.querySelector("[data-act=cancel]").onclick = () => close();
+  pop.querySelector("[data-act=apply]").onclick = async () => {
+    const said = pop.querySelector(".said");
+    said.className = "said muted";
+    said.textContent = "Applying…";
+    const controls = pop.querySelectorAll("button,input");
+    controls.forEach(c => (c.disabled = true));
+    pop.dataset.busy = "1";
+    const groups = [...pop.querySelectorAll("input:not(:checked)")]
+      .map(i => i.dataset.id);
+    try {
+      await call(unlocked(period, { action: "omit", period, groups }));
+      pop.dataset.dirty = "1";
+      delete pop.dataset.busy;
+      close();
+    } catch (e) {
+      delete pop.dataset.busy;
+      said.className = "said err";
+      said.textContent = closedMsg(e, period);
+      controls.forEach(c => (c.disabled = false));
+    }
+  };
+}
+
+let SCOPE = { mode: "always", period: null };
+let STAGED = [];
+
+const UNLOCKED = new Set();
+
+function unlocked(period, body) {
+  return UNLOCKED.has(period) ? Object.assign({ override: true }, body) : body;
+}
+
+function closedMsg(e, period) {
+  const text = (e && e.message) || String(e);
+  return /read-only|closed month/.test(text)
+    ? `${period} is closed - open it on the Month view and press `
+      + `"Unlock this month", then try again.`
+    : text;
+}
+
+function scopeLine() {
+  if (SCOPE.mode === "always") return "Changes apply to <b>every month</b>.";
+  const when = SCOPE.mode === "month"
+    ? `<b>${esc(SCOPE.period)} only</b>`
+    : `<b>${esc(SCOPE.period)} and every later month</b>`;
+  return `Changes apply to ${when}, once applied.`;
+}
+
+const EDITORS = {
+  limits: "Edit limits…",
+  majors: "Edit major groups…",
+  minors: "Edit minor groups…",
+  left: "Edit the Left line…",
+  words: "Edit the words you teach…",
+};
+
+function configMenu(anchor, target) {
+  const { pop, close } = editorCard(anchor, false);
+  const wanted = EDITORS[target] ? target : "limits";
+  const period = document.getElementById("period").value;
+  const here = PERIODS.find(p => p.month === period);
+  const label = here ? `${here.month}${here.year ? " " + here.year : ""}` : period;
+  if (SCOPE.mode !== "always" && SCOPE.name !== period) {
+    SCOPE = { mode: "always", period: label, name: period };
+    STAGED = [];
+  }
+  pop.innerHTML = `
+    <p class="ask">Which months should the changes apply to?</p>
+    <label><input type="radio" name="scope" value="always"
+      ${SCOPE.mode === "always" ? "checked" : ""}> Every month</label>
+    <label><input type="radio" name="scope" value="month"
+      ${SCOPE.mode === "month" ? "checked" : ""}> ${esc(label)} only</label>
+    <label><input type="radio" name="scope" value="onward"
+      ${SCOPE.mode === "onward" ? "checked" : ""}> ${esc(label)} and all further months</label>
+    <hr style="border:0; border-top:1px solid var(--rule); margin:10px 0">
+    <button data-go="${wanted}">${esc(EDITORS[wanted])}</button>
+    <button data-cancel="1">Cancel</button>
+    <span class="said muted"></span>`;
+  pop.querySelectorAll("input[name=scope]").forEach(r => {
+    r.onchange = () => {
+      const dropped = STAGED.length;
+      SCOPE = { mode: r.value, period: label, name: period };
+      STAGED = [];
+      if (dropped) {
+        const said = pop.querySelector(".said") || pop;
+        said.textContent = `${dropped} unapplied change(s) discarded.`;
+      }
+    };
+  });
+  pop.querySelectorAll("button").forEach(btn => {
+    btn.onclick = () => {
+      if (btn.dataset.cancel) return close();
+      const go = btn.dataset.go;
+      close();
+      if (go === "limits") limitsEditor(anchor);
+      else if (go === "left") leftEditor(anchor);
+      else if (go === "words") wordsEditor(anchor);
+      else groupsEditor(anchor, go);
+    };
+  });
+}
+
+function stagedPanel(pop, redraw) {
+  if (SCOPE.mode === "always") return "";
+  return `
+    <hr style="border:0; border-top:1px solid var(--rule); margin:10px 0">
+    <p class="scope">${scopeLine()}</p>
+    ${STAGED.length
+      ? `<ol class="staged">${STAGED.map(o =>
+          `<li>${esc(describeOp(o))}</li>`).join("")}</ol>
+         <button data-staged="apply">Apply</button>
+         <button data-staged="discard">Discard</button>`
+      : `<p class="muted">Nothing staged yet - your changes will be listed here.</p>`}`;
+}
+
+let SHOWN = { majors: {}, minors: {}, slots: {} };
+function rememberShown(cfg) {
+  SHOWN = { majors: {}, minors: {}, slots: {} };
+  (cfg.majors || []).forEach(m => {
+    SHOWN.majors[m.name] = m.label;
+    (m.minors || []).forEach(n => { SHOWN.minors[n.name] = n.label; });
+  });
+  ((cfg.left || {}).slots || []).forEach(sl => { SHOWN.slots[sl.id] = sl; });
+}
+const majorShown = name => SHOWN.majors[name] || name;
+const minorShown = name => SHOWN.minors[name] || name;
+const slotShown = id => (SHOWN.slots[id] && SHOWN.slots[id].label) || id;
+
+const KIND_WORDS = {
+  card: "card balance", cash: "cash in hand", purse: "weekly purse", carry: "carried over",
+};
+const kindWord = k => KIND_WORDS[k] || k;
+
+function describeOp(o) {
+  const major = majorShown(o.major);
+  switch (o.op) {
+    case "add_major": return `add the group ${o.name}` + (o.limit ? `, limit ${o.limit}` : "");
+    case "remove_major": return o.minors_to
+      ? `remove the group ${major}, its minor groups to ${majorShown(o.minors_to)}`
+      : `remove the group ${major}`;
+    case "rename_major": return `rename ${major} to ${o.name}`;
+    case "rename_minor": return `rename ${minorShown(o.minor)} to ${o.name}`;
+    case "reroute_minor": return `count ${minorShown(o.minor)} under ${major}`;
+    case "add_minor": return `add ${o.name} under ${major}`;
+    case "remove_minor": return `remove ${minorShown(o.minor)}`;
+    case "set_limit": return o.value === null
+      ? `remove the limit on ${major}` : `limit ${major} to ${o.value}`;
+    case "rename_limit": return `call ${major}'s limit "${o.label}"`;
+    case "move_limit": return `move ${major}'s limit to ${majorShown(o.to)}`;
+    case "learn_word": return `teach ${o.word} → ${minorShown(o.group)}`;
+    case "forget_word": return `forget ${o.word}`;
+    case "left_rename_slot": {
+      const was = SHOWN.slots[o.slot] || {};
+      const slot = slotShown(o.slot);
+      if (o.label === was.label && o.place && o.place !== was.place)
+        return o.place === "after" ? `${slot}: its name after the figure`
+                                   : `${slot}: its name before the figure`;
+      return `call ${slot} "${o.label}"`;
+    }
+    case "left_set_kind": return `${slotShown(o.slot)} counted as ${kindWord(o.kind)}`;
+    case "left_add_slot": return `add ${o.label} to the Left line`;
+    case "left_remove_slot": return `remove ${slotShown(o.slot)} from the Left line`;
+    case "left_reorder": return "the Left line in a new order";
+    case "left_reset": return "the original Left line back";
+    default: return o.op.replace(/_/g, " ");
+  }
+}
+
+function wireStaged(pop, redraw) {
+  const apply = pop.querySelector("[data-staged=apply]");
+  const discard = pop.querySelector("[data-staged=discard]");
+  if (discard) discard.onclick = () => { STAGED = []; redrawCurrent(pop, redraw); };
+  if (!apply) return;
+
+  const said = pop.querySelector(".said");
+  const body = () => unlocked(SCOPE.name, {
+    action: "configure", scope: SCOPE.mode, period: SCOPE.name, ops: STAGED,
+  });
+
+  apply.onclick = async () => {
+    apply.disabled = true;
+    said.className = "said muted";
+    said.textContent = "Checking…";
+    try {
+      const preview = await call(body());
+      apply.hidden = true;
+      said.innerHTML = `${STAGED.length} change(s) to ${esc(preview.months.join(", "))}.
+        <button data-go="yes">Yes, apply</button>
+        <button data-go="no">No, keep staging</button>`;
+      said.querySelector("[data-go=no]").onclick = () => {
+        apply.hidden = false;
+        apply.disabled = false;
+        said.innerHTML = "";
+      };
+      said.querySelector("[data-go=yes]").onclick = async () => {
+        said.innerHTML = "";
+        said.textContent = "Applying…";
+        try {
+          await call(Object.assign({ confirm: true }, body()));
+          STAGED = [];
+          pop.dataset.dirty = "1";
+          redraw(await call({ action: "config", period: SCOPE.name }));
+        } catch (e) {
+          apply.hidden = false;
+          apply.disabled = false;
+          said.className = "said err";
+          said.textContent = closedMsg(e, SCOPE.name);
+        }
+      };
+    } catch (e) {
+      apply.disabled = false;
+      said.className = "said err";
+      said.textContent = closedMsg(e, SCOPE.name);
+    }
+  };
+}
+
+function editorConfig() {
+  return { action: "config", period: SCOPE.mode !== "always" ? SCOPE.name : undefined };
+}
+
+async function redrawCurrent(pop, redraw) {
+  try {
+    redraw(await call({ action: "config", period: SCOPE.name || undefined }));
+  } catch (e) { }
+}
+
+async function applyOp(pop, body, redraw, onFail) {
+  const said = pop.querySelector(".said");
+  if (SCOPE.mode !== "always") {
+    STAGED.push(body);
+    said.className = "said muted";
+    said.textContent = `${STAGED.length} change(s) staged.`;
+    return redrawCurrent(pop, redraw);
+  }
+  said.className = "said muted";
+  said.textContent = "Saving…";
+  const controls = pop.querySelectorAll("button,select,input");
+  controls.forEach(c => (c.disabled = true));
+  pop.dataset.busy = "1";
+  try {
+    const cfg = await call(Object.assign({ action: "configure" }, body));
+    pop.dataset.dirty = "1";
+    redraw(cfg);
+  } catch (e) {
+    said.className = "said err";
+    said.textContent = e.message || String(e);
+    controls.forEach(c => (c.disabled = false));
+    if (onFail) onFail(e);
+  } finally {
+    delete pop.dataset.busy;
+  }
+}
+
+async function applyChain(pop, ops, redraw) {
+  for (let i = 0; i < ops.length; i++) {
+    const last = i === ops.length - 1;
+    let failed = false;
+    await applyOp(pop, ops[i], cfg => { if (last) redraw(cfg); }, () => (failed = true));
+    if (failed) return;
+  }
+}
+
+function inlineInput(btn, placeholder, onGo, initial) {
+  const field = document.createElement("span");
+  field.innerHTML = `<input type="text" placeholder="${esc(placeholder)}">
+    <button data-go="1">OK</button>`;
+  btn.replaceWith(field);
+  const input = field.querySelector("input");
+  if (initial) input.value = initial;
+  let sent = false;
+  const go = () => {
+    if (sent || !input.value.trim()) return;
+    sent = true;
+    onGo(input.value.trim());
+  };
+  field.querySelector("[data-go]").onclick = go;
+  input.onkeydown = e => {
+    if (e.key === "Enter") { e.preventDefault(); go(); }
+  };
+  input.focus();
+}
+
+async function limitsEditor(anchor) {
+  const { pop, close } = editorCard(anchor, true);
+  pop.innerHTML = `<p class="ask">Loading…</p>`;
+  let cfg;
+  try { cfg = await call(editorConfig()); }
+  catch (e) { pop.innerHTML = `<p class="err">${esc(e.message || e)}</p>`; return; }
+  draw(cfg);
+
+  function draw(cfg) {
+    rememberShown(cfg);
+    const majors = cfg.majors.filter(m => m.tier !== "EXCLUDED");
+    const limited = cfg.limit_order
+      .map(name => majors.find(m => m.name === name))
+      .filter(Boolean);
+    const free = majors.filter(m => m.limit === null);
+    pop.innerHTML = `
+      <h3>Limits</h3>
+      <p class="ask">Each row watches one major group. Remove frees the group;
+        Watch points the row at another.</p>
+      ${limited.map(m => `
+        <div class="erow" data-major="${esc(m.name)}">
+          <b>${esc(m.limit_label || m.label)}</b>
+          <span class="muted">${esc(m.label)} · ${m.limit}</span>
+          <button data-act="value">Value</button>
+          <button data-act="label">Rename</button>
+          <button data-act="watch">Watch…</button>
+          <button data-act="drop">Remove</button>
+        </div>`).join("")}
+      <h3>Add a limit</h3>
+      <p class="ask">Choose a group that has none yet, or type a name: a group's
+        own name means that group, and a new name makes a new group carrying the limit.</p>
+      <div class="erow">
+        <select id="new-limit-major">
+          <option value="">Choose a group…</option>
+          ${free.map(m => `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("")}
+          <option value="" data-new="1">— a new group —</option>
+        </select>
+        <input type="text" id="new-limit-name" placeholder="new group name" size="12">
+        <input type="text" id="new-limit-value" placeholder="thousands" size="9">
+        <button data-act="add">Add</button>
+      </div>
+      <div class="erow">
+        <input type="text" id="new-limit-label" placeholder="shown as (optional)" size="14">
+        <span class="muted">the boxed name, when it differs from the group's</span>
+      </div>
+      <button data-act="done">Done</button>
+      ${stagedPanel(pop, draw)}
+      <span class="said muted"></span>`;
+    wireStaged(pop, draw);
+
+    const redraw = c => draw(c);
+    pop.querySelectorAll("[data-act]").forEach(btn => {
+      const row = btn.closest("[data-major]");
+      const major = row && row.dataset.major;
+      btn.onclick = () => {
+        const act = btn.dataset.act;
+        if (act === "done") return close();
+        if (act === "drop") return applyOp(pop, { op: "set_limit", major, value: null }, redraw);
+        if (act === "value") return inlineInput(btn, "thousands", v => {
+          const n = parseInt(v, 10);
+          if (n > 0) applyOp(pop, { op: "set_limit", major, value: n }, redraw);
+          else pop.querySelector(".said").textContent = "A positive number of thousands.";
+        });
+        if (act === "label") return inlineInput(btn, "shown name", v =>
+          applyOp(pop, { op: "rename_limit", major, label: v }, redraw));
+        if (act === "watch") {
+          const options = free.map(m =>
+            `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("");
+          if (!options) { pop.querySelector(".said").textContent = "Every group already carries a limit."; return; }
+          const sel = document.createElement("select");
+          sel.innerHTML = `<option value="">watch…</option>` + options;
+          btn.replaceWith(sel);
+          sel.onchange = () => sel.value &&
+            applyOp(pop, { op: "move_limit", major, to: sel.value }, redraw);
+          return;
+        }
+        if (act === "add") {
+          let target = pop.querySelector("#new-limit-major").value;
+          const fresh = pop.querySelector("#new-limit-name").value.trim();
+          const label = pop.querySelector("#new-limit-label").value.trim();
+          const n = parseInt(pop.querySelector("#new-limit-value").value, 10);
+          const said = pop.querySelector(".said");
+          if (!(n > 0)) { said.textContent = "A positive number of thousands."; return; }
+          if (fresh) {
+            const typed = fresh.toLowerCase();
+            const named = cfg.majors.find(m =>
+              m.name.toLowerCase() === typed || m.label.toLowerCase() === typed);
+            const picked = target && cfg.majors.find(m => m.name === target);
+            if (picked && (!named || named.name !== picked.name)) {
+              said.textContent = `You chose ${picked.label} and typed ${fresh} - keep one.`;
+              return;
+            }
+            if (named && named.limit !== null) {
+              said.textContent = `${named.label} already has a limit - change it with Value on its row.`;
+              return;
+            }
+            if (named) target = named.name;
+          }
+          if (!target && !fresh) { said.textContent = "Pick a group, or name a new one."; return; }
+          const chain = target
+            ? [{ op: "set_limit", major: target, value: n }]
+            : [{ op: "add_major", name: fresh, tier: "NECESSARY", limit: n }];
+          if (label) chain.push({ op: "rename_limit", major: target || fresh, label });
+          return applyChain(pop, chain, redraw);
+        }
+      };
+    });
+  }
+}
+
+async function wordsEditor(anchor) {
+  const { pop, close } = editorCard(anchor, true);
+  pop.innerHTML = `<p class="ask">Loading…</p>`;
+  let cfg;
+  try { cfg = await call({ action: "config", period: SCOPE.name || undefined }); }
+  catch (e) { pop.innerHTML = `<p class="err">${esc(e.message || e)}</p>`; return; }
+  draw(cfg);
+
+  function draw(cfg) {
+    rememberShown(cfg);
+    const words = cfg.words || [];
+    const groups = cfg.majors.flatMap(m =>
+      m.minors.map(n => ({ name: n.name, label: n.label === m.label ? n.label : `${m.label} · ${n.label}` })));
+    pop.innerHTML = `
+      <h3>Words you teach</h3>
+      <p class="ask">A line carrying one of these books to its group without
+        being asked about. What you answer or move yourself still wins, and
+        where two words fit one line the longer one decides it.</p>
+      ${words.length ? words.map(w => `
+        <div class="erow" data-word="${esc(w.word)}">
+          <b>${esc(w.word)}</b>
+          <span class="muted">→ ${esc(w.label)}</span>
+          <button data-act="forget">Forget</button>
+        </div>`).join("") : `<p class="muted">Nothing taught yet.</p>`}
+      <h3>Teach one</h3>
+      <div class="erow">
+        <input type="text" id="new-word" placeholder="a word, or two" size="16">
+        <select id="new-word-group">
+          ${groups.map(g => `<option value="${esc(g.name)}">${esc(g.label)}</option>`).join("")}
+        </select>
+        <button data-act="teach">Teach</button>
+      </div>
+      <button data-act="done">Done</button>
+      ${stagedPanel(pop, draw)}
+      <span class="said muted"></span>`;
+    wireStaged(pop, draw);
+
+    const redraw = c => draw(c);
+    pop.querySelectorAll("[data-act]").forEach(btn => {
+      btn.onclick = () => {
+        const act = btn.dataset.act;
+        if (act === "done") return close();
+        if (act === "forget") {
+          return applyOp(pop, {
+            op: "forget_word", word: btn.closest("[data-word]").dataset.word,
+          }, redraw);
+        }
+        const word = pop.querySelector("#new-word").value.trim();
+        const said = pop.querySelector(".said");
+        if (word.replace(/[^\p{L}\p{N}]/gu, "").length < 3) {
+          said.className = "said err";
+          said.textContent = "A word of three letters or more.";
+          return;
+        }
+        applyOp(pop, {
+          op: "learn_word", word, group: pop.querySelector("#new-word-group").value,
+        }, redraw);
+      };
+    });
+  }
+}
+
+async function groupsEditor(anchor, which) {
+  const majorsOnly = which !== "minors";
+  const { pop, close } = editorCard(anchor, true);
+  pop.innerHTML = `<p class="ask">Loading…</p>`;
+  let cfg;
+  try { cfg = await call(editorConfig()); }
+  catch (e) { pop.innerHTML = `<p class="err">${esc(e.message || e)}</p>`; return; }
+  draw(cfg);
+
+  function draw(cfg) {
+    rememberShown(cfg);
+    const majors = cfg.majors.filter(m => m.tier !== "EXCLUDED");
+    const spending = majors.filter(m => !m.income);
+    const last = m => !m.income && spending.length === 1;
+    const options = majors.map(m =>
+      `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("");
+    const majorRows = majors.map(m => `
+        <div class="erow" data-major="${esc(m.name)}">
+          <b>${esc(m.label)}</b>
+          <span class="muted">${esc(m.tier.toLowerCase())}${m.limit ? " · limit " + m.limit : ""}</span>
+          <button data-act="rename-major">Rename</button>
+          ${last(m) ? "" : `<button data-act="remove-major">Remove</button>`}
+        </div>`).join("");
+    const minorRows = majors.map(m => m.minors.map(n => `
+        <div class="erow" data-minor="${esc(n.name)}">
+          ${esc(n.label)}
+          <span class="muted">under ${esc(m.label)}</span>
+          <button data-act="rename-minor">Rename</button>
+          <select data-act="route">
+            <option value="">route to…</option>${options}
+          </select>
+        </div>`).join("")).join("");
+    pop.innerHTML = `
+      <h3>${majorsOnly ? "Major groups" : "Minor groups"}</h3>
+      <p class="ask">${majorsOnly
+        ? `One bar, one limit, one figure. Remove moves its minor groups to the
+           group you choose, so their money is still counted; one group always stays.`
+        : `Where a single line lands. Route moves one under another major;
+           several may share one, which is how scattered lines become a single
+           figure.`}</p>
+      ${majorsOnly ? majorRows : minorRows}
+      <h3>Add</h3>
+      ${majorsOnly ? `
+      <div class="erow">
+        <input type="text" id="new-major-name" placeholder="new major" size="12">
+        <select id="new-major-tier">
+          <option value="NECESSARY">necessary</option>
+          <option value="FREQUENT">frequent</option>
+          <option value="OCCASIONAL">occasional</option>
+        </select>
+        <button data-act="add-major">Add major</button>
+      </div>` : `
+      <div class="erow">
+        <input type="text" id="new-minor-name" placeholder="new minor" size="12">
+        <select id="new-minor-major">${options}</select>
+        <button data-act="add-minor">Add minor</button>
+      </div>`}
+      <button data-act="done">Done</button>
+      ${stagedPanel(pop, draw)}
+      <span class="said muted"></span>`;
+    wireStaged(pop, draw);
+
+    const redraw = c => draw(c);
+    pop.querySelectorAll("[data-act]").forEach(el => {
+      const majorRow = el.closest("[data-major]");
+      const minorRow = el.closest("[data-minor]");
+      const act = el.dataset.act;
+      if (act === "route") {
+        el.onchange = () => el.value && applyOp(pop, {
+          op: "reroute_minor", minor: minorRow.dataset.minor, major: el.value,
+        }, redraw);
+        return;
+      }
+      el.onclick = () => {
+        if (act === "done") return close();
+        if (act === "rename-major") return inlineInput(el, "new name", v =>
+          applyOp(pop, { op: "rename_major", major: majorRow.dataset.major, name: v }, redraw));
+        if (act === "remove-major") {
+          const m = majors.find(x => x.name === majorRow.dataset.major);
+          if (!m.minors.length) return applyOp(pop, { op: "remove_major", major: m.name }, redraw);
+          const said = pop.querySelector(".said");
+          const targets = majors.filter(x => x.name !== m.name && !!x.income === !!m.income);
+          said.className = "said muted";
+          if (!targets.length) {
+            said.textContent = "No other group can take its minor groups.";
+            return;
+          }
+          said.textContent = `The minor groups of ${m.label} (${m.minors.map(n => n.label).join(", ")}) `
+            + "move to the group you choose, so their money is still counted.";
+          const sel = document.createElement("select");
+          sel.innerHTML = `<option value="">its minor groups to…</option>` +
+            targets.map(x => `<option value="${esc(x.name)}">${esc(x.label)}</option>`).join("");
+          el.replaceWith(sel);
+          sel.onchange = () => sel.value && applyOp(pop, {
+            op: "remove_major", major: m.name, minors_to: sel.value }, redraw);
+          return;
+        }
+        if (act === "rename-minor") return inlineInput(el, "new name", v =>
+          applyOp(pop, { op: "rename_minor", minor: minorRow.dataset.minor, name: v }, redraw));
+        if (act === "add-major") {
+          const name = pop.querySelector("#new-major-name").value.trim();
+          const tier = pop.querySelector("#new-major-tier").value;
+          if (name) applyOp(pop, { op: "add_major", name, tier }, redraw);
+          return;
+        }
+        if (act === "add-minor") {
+          const name = pop.querySelector("#new-minor-name").value.trim();
+          const major = pop.querySelector("#new-minor-major").value;
+          if (name && major) applyOp(pop, { op: "add_minor", name, major }, redraw);
+        }
+      };
+    });
+  }
+}
+
+async function leftEditor(anchor) {
+  const { pop, close } = editorCard(anchor, true);
+  pop.innerHTML = `<p class="ask">Loading…</p>`;
+  let cfg;
+  try { cfg = await call(editorConfig()); }
+  catch (e) { pop.innerHTML = `<p class="err">${esc(e.message || e)}</p>`; return; }
+  draw(cfg);
+
+  function draw(cfg) {
+    rememberShown(cfg);
+    const slots = (cfg.left && cfg.left.slots) || [];
+    const kinds = (cfg.left && cfg.left.kinds) || ["card", "cash", "purse", "carry"];
+    const said = KIND_WORDS;
+    pop.innerHTML = `
+      <h3>The Left line</h3>
+      <p class="ask">One row per figure, in the order they are written. The name
+        prints before or after its figure; the kind decides how a month still
+        being written is recounted.</p>
+      ${slots.map((sl, i) => `
+        <div class="erow" data-slot="${esc(sl.id)}">
+          <b>${esc(sl.label || sl.id)}</b>
+          <span class="muted">${esc(said[sl.kind] || sl.kind)} ·
+            ${sl.place === "after" ? "name after" : "name before"}</span>
+          <button data-act="label">Name</button>
+          <button data-act="side">${sl.place === "after" ? "→ before" : "→ after"}</button>
+          <select data-act="kind">
+            ${kinds.map(k => `<option value="${esc(k)}"
+              ${k === sl.kind ? "selected" : ""}>${esc(said[k] || k)}</option>`).join("")}
+          </select>
+          <button data-act="up" ${i ? "" : "disabled"}>↑</button>
+          <button data-act="down" ${i < slots.length - 1 ? "" : "disabled"}>↓</button>
+          <button data-act="drop" ${slots.length > 1 ? "" : "disabled"}>Remove</button>
+        </div>`).join("")}
+      <h3>Add a figure</h3>
+      <div class="erow">
+        <input type="text" id="new-left-label" placeholder="name" size="14">
+        <select id="new-left-kind">
+          ${kinds.map(k => `<option value="${esc(k)}">${esc(said[k] || k)}</option>`).join("")}
+        </select>
+        <button data-act="add">Add</button>
+      </div>
+      <div class="erow">
+        <button data-act="reset">Back to the original line</button>
+        <button data-act="done">Done</button>
+      </div>
+      ${stagedPanel(pop, draw)}
+      <span class="said muted"></span>`;
+    wireStaged(pop, draw);
+
+    const redraw = c => draw(c);
+    const order = slots.map(sl => sl.id);
+    pop.querySelectorAll("[data-act]").forEach(el => {
+      const row = el.closest("[data-slot]");
+      const slot = row && row.dataset.slot;
+      const act = el.dataset.act;
+      if (act === "kind") {
+        el.onchange = () => applyOp(pop,
+          { op: "left_set_kind", slot, kind: el.value }, redraw);
+        return;
+      }
+      el.onclick = () => {
+        if (act === "done") return close();
+        if (act === "reset") return applyOp(pop, { op: "left_reset" }, redraw);
+        if (act === "label") {
+          const current = slots.find(sl => sl.id === slot);
+          return inlineInput(el, "name", v => applyOp(pop, {
+            op: "left_rename_slot", slot, label: v,
+            place: current.place, join: current.join,
+          }, redraw), current.label);
+        }
+        if (act === "side") {
+          const current = slots.find(sl => sl.id === slot);
+          return applyOp(pop, {
+            op: "left_rename_slot", slot, label: current.label,
+            place: current.place === "after" ? "before" : "after",
+            join: current.place === "after" ? " " : "",
+          }, redraw);
+        }
+        if (act === "up" || act === "down") {
+          const at = order.indexOf(slot);
+          const to = act === "up" ? at - 1 : at + 1;
+          const moved = order.slice();
+          [moved[at], moved[to]] = [moved[to], moved[at]];
+          return applyOp(pop, { op: "left_reorder", order: moved }, redraw);
+        }
+        if (act === "drop") return applyOp(pop, { op: "left_remove_slot", slot }, redraw);
+        if (act === "add") {
+          const label = pop.querySelector("#new-left-label").value.trim();
+          const kind = pop.querySelector("#new-left-kind").value;
+          if (!label) { pop.querySelector(".said").textContent = "Give it a name."; return; }
+          applyOp(pop, { op: "left_add_slot", label, kind }, redraw);
+        }
+      };
+    });
+  }
+}
+
+function moverPopup(anchor, src, period) {
+  document.querySelectorAll(".mover").forEach(p => p.remove());
+
+  const cands = [...new Set(src.flatMap(s => s.candidates || []))];
+  const pop = document.createElement("div");
+  pop.className = "mover";
+  pop.innerHTML = `
+    <div class="src">${src.map(s => `<div class="src-line">${s.date ? `<span class="src-date">${esc(s.date)}</span>` : ""}<code>${esc(s.raw)}</code></div>`).join("")}</div>
+    <p class="ask">Where should this go?</p>
+    ${cands.map(c => `<button data-group="${esc(c)}">${esc(c)}</button>`).join(" ")}
+    <button data-prompt="1">Other…</button>
+    ${src.some(s => s.kind === "moved")
+      ? `<button data-lift="1" title="lift your move and let the rules decide again">Put it back</button>` : ""}
+    <button data-cancel="1">Cancel</button>
+    <span class="muted"></span>`;
+  document.body.appendChild(pop);
+
+  call({ action: "day", period, entries: src.map(s => ({ raw: s.raw, occurrence: s.occurrence })) })
+    .then(days => {
+      const list = pop.querySelector(".src");
+      if (!list || !Array.isArray(days) || !days.length) return;
+      list.innerHTML = days.map(d => dayWindow(d.date, d.lines)).join("");
+      scrollDays(list);
+    })
+    .catch(() => {});
+
+  const rect = anchor.getBoundingClientRect();
+  const room = Math.min(348, innerWidth - 8);
+  pop.style.top = `${rect.bottom + scrollY + 6}px`;
+  pop.style.left = `${Math.max(8, Math.min(rect.left + scrollX, scrollX + innerWidth - room))}px`;
+
+  let busy = false;
+  const onKey = e => { if (e.key === "Escape" && !busy) close(); };
+  const onDoc = e => { if (!busy && !pop.contains(e.target)) close(); };
+  function close() {
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("pointerdown", onDoc, true);
+    pop.remove();
+  }
+  document.addEventListener("keydown", onKey);
+  document.addEventListener("pointerdown", onDoc, true);
+
+  async function move(group, isNew) {
+    busy = true;
+    pop.querySelectorAll("button,input").forEach(b => (b.disabled = true));
+    const said = pop.querySelector(".muted");
+    said.textContent = "Moving…";
+    const placed = src.filter(s => s.kind !== "answered");
+    const answered = src.filter(s => s.kind === "answered");
+    try {
+      for (const s of placed) {
+        await call(unlocked(period, {
+          action: "move", period, raw: s.raw, occurrence: s.occurrence,
+          group, new: isNew || !(s.candidates || []).includes(group),
+        }));
+      }
+      if (!answered.length) {
+        pop.dataset.done = "1";
+        close();
+        return render();
+      }
+      const entries = answered.map(s => ({ raw: s.raw, occurrence: s.occurrence }));
+      await call(unlocked(period, { action: "unanswer", period, entries }));
+      const qs = await call({ action: "questions", period });
+      for (const s of answered) {
+        const q = qs.find(x => x.raw === s.raw && x.occurrence === s.occurrence);
+        const asNew = isNew || !(s.candidates || []).includes(group);
+        await call(unlocked(period, q
+          ? { action: "answer", period, number: q.number, group, new: asNew }
+          : { action: "move", period, raw: s.raw, occurrence: s.occurrence,
+              group, new: asNew }));
+      }
+      close();
+      render();
+    } catch (e) {
+      busy = false;
+      said.className = "err";
+      said.textContent = closedMsg(e, period);
+      pop.querySelectorAll("button").forEach(b => (b.disabled = false));
+    }
+  }
+
+  async function lift() {
+    busy = true;
+    pop.querySelectorAll("button,input").forEach(b => (b.disabled = true));
+    pop.querySelector(".muted").textContent = "Putting it back…";
+    try {
+      for (const s of src.filter(x => x.kind === "moved")) {
+        await call(unlocked(period, {
+          action: "move", period, raw: s.raw, occurrence: s.occurrence, group: null,
+        }));
+      }
+      close();
+      render();
+    } catch (e) {
+      busy = false;
+      pop.querySelectorAll("button,input").forEach(b => (b.disabled = false));
+      const said = pop.querySelector(".muted");
+      said.className = "muted err";
+      said.textContent = closedMsg(e, period);
+    }
+  }
+
+  pop.querySelectorAll("button").forEach(btn => {
+    btn.onclick = () => {
+      if (btn.dataset.cancel) return close();
+      if (btn.dataset.lift) return lift();
+      if (btn.dataset.prompt) {
+        const field = document.createElement("span");
+        field.innerHTML = `<input type="text" placeholder="group name, then Enter">
+          <button data-go="1">Move</button>`;
+        btn.replaceWith(field);
+        const input = field.querySelector("input");
+        const go = () => input.value.trim() && move(input.value.trim(), true);
+        field.querySelector("[data-go]").onclick = go;
+        input.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); go(); } };
+        input.focus();
+        return;
+      }
+      move(btn.dataset.group, false);
+    };
+  });
+}
+
+function dayWindow(date, lines, raw) {
+  if (!lines || !lines.length) return raw === undefined ? "" : `<code>${esc(raw)}</code>`;
+  return `<div class="day">${date ? `<div class="day-date">${esc(date)}</div>` : ""}
+    <div class="day-lines">${lines.map(l => l.this
+      ? `<b class="this">${esc(l.text)}</b>`
+      : `<span>${esc(l.text)}</span>`).join("")}</div></div>`;
+}
+
+function scrollDays(root) {
+  root.querySelectorAll(".day-lines").forEach(box => {
+    const first = box.querySelector(".this");
+    if (first) {
+      box.scrollTop = Math.max(0, first.offsetTop - (box.clientHeight - first.offsetHeight) / 2);
+    }
+  });
+}
+
+let CHART_REPAINT = null;
+let resizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (CHART_REPAINT) CHART_REPAINT(); }, 120);
+});
+
+async function viewQuestions(period) {
+  const rows = await call({ action: "questions", period });
+  markQuestions(rows.length);
+
+  const again = `
+    <div class="lockbar">
+      <span>${rows.length
+        ? `${rows.length} question${rows.length === 1 ? "" : "s"} still open.`
+        : "Every question here is answered."}</span>
+      <button id="ask-again">Ask them all again</button>
+      <span id="again-said" class="muted"></span>
+    </div>`;
+
+  if (!rows.length) {
+    app().innerHTML = again + `<p class="center">Nothing pending.</p>`;
+    wireAskAgain(period);
+    return;
+  }
+
+  app().innerHTML = again + rows.map(q => `
+    <div class="q" data-n="${q.number}">
+      ${dayWindow(q.date, q.day, q.raw)}
+      <p class="ask">${esc(q.review || "")}</p>
+      ${(q.candidates || []).map(c =>
+        `<button data-group="${esc(c)}">${esc(c)}</button>`).join(" ")}
+      <button data-prompt="1">Other…</button>
+      <span class="said muted"></span>
+    </div>`).join("");
+
+  wireAskAgain(period);
+
+  scrollDays(app());
+
+  app().querySelectorAll(".q button").forEach(btn => {
+    btn.onclick = async () => {
+      const box = btn.closest(".q");
+      const number = Number(box.dataset.n);
+      if (btn.dataset.prompt) {
+        return inlineInput(btn, "group name, then Enter",
+                           v => answer(box, number, v, true));
+      }
+      answer(box, number, btn.dataset.group, false);
+    };
+  });
+
+  async function answer(box, number, group, isNew) {
+    if (!group) return;
+    try {
+      await call(unlocked(period,
+        { action: "answer", period, number, group, new: isNew }));
+      await viewQuestions(period);
+    } catch (e) {
+      const said = box.querySelector(".said") || box;
+      said.className = "said err";
+      said.textContent = closedMsg(e, period);
+    }
+  }
+}
+
+async function prepImage(file) {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bmp.width * scale);
+  canvas.height = Math.round(bmp.height * scale);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = img.data;
+  let lum = 0;
+  for (let i = 0; i < d.length; i += 40) lum += 0.3 * d[i] + 0.6 * d[i + 1] + 0.1 * d[i + 2];
+  if (lum / (d.length / 40) < 110) {
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = 255 - d[i]; d[i + 1] = 255 - d[i + 1]; d[i + 2] = 255 - d[i + 2];
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
+async function viewAdd() {
+  const options = PERIODS.map(p =>
+    `<option value="${p.month}">${p.month}</option>`).join("");
+
+  app().innerHTML = `
+    <div class="add-row">
+      <label>Add to <select id="target">
+        <option value="" selected>— new month (the notes carry a salary line) —</option>
+        ${options}
+      </select></label>
+      <label title="Repair: overwrite the stored copy of this period even though it
+        looks fuller - a corrupted copy is by construction fuller than the clean file.
+        Only with '— new month —' selected.">
+        <input type="checkbox" id="replace"> replace stored copy</label>
+      <button id="send">Add</button>
+      <label class="shotlbl">or <input type="file" id="shots" accept="image/*" multiple>
+      </label><button id="read">Read screenshot(s)</button>
+      <span id="said"></span>
+      <p class="muted">Paste the notes exactly as written - dates, the daily
+        <code>Left:</code> lines, everything. Days already present are replaced
+        rather than doubled, so re-pasting an overlapping screenshot is safe.
+        <b>Adding a month a week at a time: copy the whole note from its very
+        first line each time and leave this on "new month".</b> The salary line
+        at the top is what tells the app which month it is, and the fuller copy
+        simply replaces the stored one. Pick a month by name only when you are
+        pasting the new days alone, without that opening.
+        Several months in one paste? End each with a line of
+        <code>######</code> before the next salary, or they run together as one.</p>
+    </div>
+    <textarea id="notes" placeholder="12.07&#10;160 taxi&#10;4500 market&#10;2100 pharmacy"></textarea>
+  `;
+
+  document.getElementById("read").onclick = async () => {
+    const files = document.getElementById("shots").files;
+    const said = document.getElementById("said");
+    const box = document.getElementById("notes");
+    if (!files.length) { said.className = "err"; said.textContent = "Pick screenshot(s) first."; return; }
+    for (let i = 0; i < files.length; i++) {
+      said.className = "muted";
+      said.textContent = `Reading ${i + 1} of ${files.length}…`;
+      try {
+        const text = (await call({ action: "ocr", image: await prepImage(files[i]) })).text;
+        box.value = (box.value.trim() ? box.value.trim() + "\n\n" : "") + text.trim() + "\n";
+      } catch (e) { said.className = "err"; said.textContent = e.message || e; return; }
+    }
+    said.className = "ok";
+    said.textContent = `Read ${files.length} screenshot(s) - REVIEW the text below, then Add.`;
+  };
+
+  document.getElementById("send").onclick = async () => {
+    const text = document.getElementById("notes").value;
+    const period = document.getElementById("target").value;
+    const said = document.getElementById("said");
+    if (!text.trim()) { said.className = "err"; said.textContent = "Nothing to add."; return; }
+    said.className = "muted"; said.textContent = "Adding…";
+    try {
+      const body = { action: "import", text, year: new Date().getFullYear() };
+      if (period) body.period = period;
+      else if (document.getElementById("replace").checked) body.replace = true;
+      if (UNLOCKED.size) body.unlocked = [...UNLOCKED];
+      const r = await call(period ? unlocked(period, body) : body);
+      said.className = "ok";
+      said.textContent = Array.isArray(r)
+        ? r.map(x => `${x.outcome} ${x.span}`).join("; ")
+        : `${r.month}: ${r.days_before} → ${r.days_after} days`
+          + (r.carried ? ` (next month: ${r.carried.map(c =>
+              `${c.outcome} ${c.span}`).join("; ")})` : "");
+      document.getElementById("notes").value = "";
+      PERIODS = await call({ action: "periods" });
+      fillPeriods();
+      if (VIEW !== "add") render();
+      else refreshMark(document.getElementById("period").value);
+    } catch (e) {
+      said.className = "err";
+      said.textContent = /read-only/.test(e.message || "")
+        ? `${e.message} - or open that month and press "Unlock this month" first.`
+        : e.message || String(e);
+    }
+  };
+}
+
+let COMPARE_PICK = null;
+
+function splitNames(text) {
+  const lines = text.split("\n");
+  const at = lines.length ? lines[0].search(/\S/) : -1;
+  if (at <= 0) return `<pre>${esc(text)}</pre>`;
+  const whole = l => l.length > at && l.slice(0, at).trimEnd().length > at - 2;
+  const names = lines.map(l => (whole(l) ? l : l.slice(0, at)).replace(/\s+$/, "")).join("\n");
+  const figs = lines.map(l => (whole(l) ? "" : l.slice(at))).join("\n");
+  return `<div class="cmp"><pre class="names">\n${esc(names)}</pre>`
+       + `<div class="figs"><pre>\n${esc(figs)}</pre></div></div>`;
+}
+
+let LAST = null;
+
+async function viewCompare(periods) {
+  LAST = null;
+  if (periods.length < 2) {
+    app().innerHTML = `<p class="center">Two months are needed to compare.</p>`;
+    return;
+  }
+  if (!COMPARE_PICK) {
+    const real = periods.filter(p => p.days >= 5);
+    COMPARE_PICK = new Set((real.length >= 2 ? real : periods).slice(-2).map(p => p.identity));
+  }
+  const years = [...new Set(periods.map(p => p.year).filter(Boolean))].sort();
+
+  app().innerHTML = `
+    <div class="chooser">
+      <p class="muted">Tick the months to compare.</p>
+      ${periods.map(p => `
+        <label><input type="checkbox" value="${esc(p.identity)}"
+          ${COMPARE_PICK.has(p.identity) ? "checked" : ""}>
+          ${esc(p.month)}${p.year ? " " + p.year : ""}
+          <span class="muted">${esc(p.span)}</span></label>`).join("")}
+      <button class="go" id="do-compare">Compare</button>
+      <button class="go" id="print-compare" disabled
+        title="The table as it stands, laid out for A4">Print…</button>
+      <button class="go" id="do-average"
+        title="The average of exactly the months ticked - untick a month still being written">Average</button>
+      ${years.length ? `<div class="years"><span class="lbl muted">Average a year:</span>
+        ${years.map(y => `<button data-year="${y}">${y}</button>`).join("")}</div>` : ""}
+      <span id="compare-said" class="muted"></span>
+    </div>
+    <div id="compare-out"></div>`;
+
+  const boxes = [...app().querySelectorAll(".chooser input")];
+  boxes.forEach(b => {
+    b.onchange = () => {
+      b.checked ? COMPARE_PICK.add(b.value) : COMPARE_PICK.delete(b.value);
+    };
+  });
+
+  const run = async (average) => {
+    const months = boxes.filter(b => b.checked).map(b => b.value);
+    const said = document.getElementById("compare-said");
+    const out = document.getElementById("compare-out");
+    if (months.length < (average ? 1 : 2)) {
+      said.className = "err";
+      said.textContent = average ? "That year has no months yet." : "Tick at least two.";
+      return;
+    }
+    said.className = "muted";
+    said.textContent = "";
+    try {
+      const text = await call({ action: "compare", periods: months, average: !!average });
+      if (!out.isConnected) return;
+      LAST = { months, average: !!average };
+      out.innerHTML = splitNames(text);
+      document.getElementById("print-compare").disabled = false;
+    } catch (e) {
+      if (out.isConnected) fail(e);
+    }
+  };
+  document.getElementById("do-compare").onclick = () => run(false);
+  document.getElementById("print-compare").onclick = ev =>
+    comparePrintPopup(ev.currentTarget);
+  document.getElementById("do-average").onclick = () => run(true);
+
+  app().querySelectorAll(".years button").forEach(btn => {
+    btn.onclick = () => {
+      const y = Number(btn.dataset.year);
+      const mine = periods.filter(p => p.year === y);
+      const real = mine.filter(p => p.days >= 5);
+      const pick = new Set((real.length ? real : mine).map(p => p.identity));
+      COMPARE_PICK = pick;
+      boxes.forEach(b => (b.checked = pick.has(b.value)));
+      run(true);
+    };
+  });
+
+  if (COMPARE_PICK.size >= 2) run(false);
+}
+
+function wireAskAgain(period) {
+  const btn = document.getElementById("ask-again");
+  const said = document.getElementById("again-said");
+  if (!btn) return;
+
+  const ask = () => {
+    btn.hidden = true;
+    said.className = "muted";
+    said.innerHTML = `This forgets your answers for this month - the notes stay.
+      <button id="again-yes">Yes, ask them again</button>
+      <button id="again-no">No, keep them</button>`;
+    document.getElementById("again-no").onclick = () => {
+      btn.hidden = false;
+      said.className = "muted";
+      said.textContent = "";
+    };
+    document.getElementById("again-yes").onclick = go;
+  };
+
+  const go = async () => {
+    said.innerHTML = "";
+    said.textContent = "Forgetting…";
+    try {
+      const r = await call(unlocked(period, {
+        action: "reset", scope: "answers", period, confirm: "RESET",
+      }));
+      await viewQuestions(period);
+      const back = document.getElementById("again-said");
+      if (back) {
+        back.className = "ok";
+        back.textContent =
+          `${r.wiped.answers} answer(s) forgotten - ${r.questions} question(s) again.`;
+      }
+    } catch (e) {
+      btn.hidden = false;
+      said.className = "err";
+      said.textContent = closedMsg(e, period);
+    }
+  };
+
+  btn.onclick = ask;
+}
+
+function fail(e) {
+  app().innerHTML = `<p class="err">${esc(e.message || e)}</p>`;
+  console.error(e);
+}
+
+let PERIODS = [];
+let VIEW = "month";
+
+function fillPeriods() {
+  const sel = document.getElementById("period");
+  const keep = sel.value;
+  sel.innerHTML = PERIODS.map(p =>
+    `<option value="${p.month}" title="${p.span}">${p.month}${p.year ? " " + p.year : ""}</option>`).join("");
+  const stored = new Set([...sel.options].map(o => o.value));
+  const onScreen = stored.has(keep) ? keep : null;
+  const pick = onScreen
+    || (sel.options.length ? sel.options[sel.options.length - 1].value : "");
+  if (pick) sel.value = pick;
+}
+
+function remember(key, value) {
+  try { localStorage.setItem("budget-" + key, value); } catch (e) { }
+}
+function remembered(key) {
+  try { return localStorage.getItem("budget-" + key); } catch (e) { return null; }
+}
+
+let DRAWING = null;
+let DRAW_AGAIN = false;
+
+function render() {
+  if (DRAWING) {
+    DRAW_AGAIN = true;
+    return DRAWING;
+  }
+  DRAWING = (async () => {
+    try {
+      do {
+        DRAW_AGAIN = false;
+        await drawView();
+      } while (DRAW_AGAIN);
+    } finally {
+      DRAWING = null;
+    }
+  })();
+  return DRAWING;
+}
+
+async function drawView() {
+  const period = document.getElementById("period").value;
+  const here = PERIODS.find(p => p.month === period);
+  document.title = here ? `Budget — ${here.month}${here.year ? " " + here.year : ""}` : "Budget";
+  document.getElementById("period").style.display = VIEW === "add" ? "none" : "";
+  try {
+    if (!PERIODS.length && VIEW !== "add") return await viewEmpty();
+    if (VIEW === "month") await viewMonth(period);
+    else if (VIEW === "add") { await viewAdd(); await refreshMark(period); }
+    else if (VIEW === "questions") await viewQuestions(period);
+    else { await viewCompare(PERIODS); await refreshMark(period); }
+  } catch (e) { fail(e); }
+}
+
+async function boot() {
+  initOptions(render);
+
+  const code = new URLSearchParams(location.search).get("code");
+  try {
+    if (code) await exchange(code);
+    PERIODS = await call({ action: "periods" });
+    sessionStorage.removeItem("auth-retried");
+  } catch (e) {
+    if (code && !sessionStorage.getItem("auth-retried")) {
+      sessionStorage.setItem("auth-retried", "1");
+      tokens.clear();
+      history.replaceState({}, "", location.pathname);
+      await login();
+      return;
+    }
+    return fail(e);
+  }
+
+  const lastView = remembered("view");
+  if (lastView && lastView !== "add"
+      && document.querySelector(`nav button[data-view="${lastView}"]`)) {
+    VIEW = lastView;
+  }
+
+  fillPeriods();
+  document.getElementById("period").onchange = () => render();
+
+  document.querySelectorAll("nav button[data-view]").forEach(b => {
+    b.onclick = () => {
+      VIEW = b.dataset.view;
+      remember("view", VIEW);
+      document.querySelectorAll("nav button[data-view]")
+        .forEach(o => o.classList.toggle("on", o === b));
+      render();
+    };
+  });
+  document.querySelectorAll("nav button[data-view]").forEach(o =>
+    o.classList.toggle("on", o.dataset.view === VIEW));
+  document.getElementById("signout").onclick = signOut;
+
+  render();
+}
+
+function demo(body) {
+  if (body.action === "periods") return [
+    { span: "10.01..09.02", month: "January", days: 21 },
+    { span: "10.02..09.03", month: "February", days: 19 },
+    { span: "10.03..09.04", month: "March", days: 23 }];
+  if (body.action === "import") return { month: "March", days_before: 23, days_after: 24 };
+  if (body.action === "questions") return [
+    { number: 3, raw: "310 Sunday market", review: "a market day - groceries, or a meal out?",
+      candidates: ["Groceries", "Eating out"] }];
+  if (body.action === "compare") return "  (demo)  ";
+  return {
+    span: "10.03..09.04",
+    majors: [
+      { name: "Rent", value: 7.0, limit: 7, income: false, chart: true },
+      { name: "Groceries", value: 14.6, limit: 13, income: false, chart: true },
+      { name: "Transport", value: 3.1, limit: 5, income: false, chart: true },
+      { name: "Bills", value: 2.6, limit: 3, income: false, chart: true },
+      { name: "Health", value: 1.0, limit: null, income: false, chart: true },
+      { name: "Refunds", value: -1.3, limit: null, income: true, chart: true },
+      { name: "Eating out", value: 2.7, limit: 2, income: false, chart: true },
+      { name: "Hobbies", value: 0.6, limit: 2, income: false, chart: true },
+      { name: "Garden", value: 1.2, limit: null, income: false, chart: true },
+      { name: "Books", value: 3.0, limit: null, income: false, chart: true },
+      { name: "Bicycle repair", value: 2.4, limit: null, income: false, chart: true },
+      { name: "Picture frame", value: 0.4, limit: null, income: false, chart: true },
+      { name: "Withdrawal", value: 14.0, limit: null, income: false, chart: false },
+    ],
+    minors: [
+      { name: "Groceries", total: 14600, subgroups: [
+          { name: "market", amounts: [9900], total: 9900 },
+          { name: "delivery", amounts: [3300], total: 3300 },
+          { name: "bakery", amounts: [1400], total: 1400 }] },
+      { name: "Transport", total: 3100, subgroups: [
+          { name: "bus", amounts: [620], total: 620 },
+          { name: "train", amounts: [960, 1520], total: 2480 }] },
+      { name: "Electricity", amounts: [840, 780], total: 1620 },
+      { name: "Water", amounts: [510, 470], total: 980 },
+      { name: "Internet", amounts: [], total: 0 },
+      { name: "Health", amounts: [210, 450, 340], total: 1000 },
+      { name: "Refunds", amounts: [-520, -780], total: -1300 },
+      { name: "Withdrawal", amounts: [5200, 4700, 4100], total: 14000 },
+      { name: "Hobbies", amounts: [170, -170, 600], total: 600 },
+    ],
+    limits: [
+      { label: "Rent", group: "Rent", value: 7 }, { label: "Groceries", group: "Groceries", value: 13 },
+      { label: "Getting about", group: "Transport", value: 5 }, { label: "Bills", group: "Bills", value: 3 },
+      { label: "Dining", group: "Eating out", value: 2 }, { label: "Hobbies", group: "Hobbies", value: 2 },
+    ],
+    totals: { necessary: 30.3, appended: 7.0, grand: 37.3 },
+    appended: [{ name: "Garden", value: 1.2 }, { name: "Books", value: 3.0 },
+               { name: "Bicycle repair", value: 2.4 }, { name: "Picture frame", value: 0.4 }],
+    questions: 4,
+  };
+}
+
+boot();
+</script>
+</body>
+</html>

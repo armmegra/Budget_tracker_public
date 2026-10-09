@@ -1,0 +1,90 @@
+# =============================================================================
+# NOT ACTIVE. This file is deliberately named .yml.disabled - GitHub only reads
+# .yml and .yaml, so nothing here can run.
+#
+# Turn it on by renaming to deploy.yml, and only once ALL of these are true:
+#
+#   1. The Terraform instance has been applied by hand at least once and works.
+#   2. The role this assumes has a policy scoped to what the pipeline changes
+#      (docs/RESOURCES.md, item 4). CI with admin rights is CI that can empty
+#      the account on a bad merge.
+#   3. You have decided you want a push to main to change live infrastructure.
+#      Until then, applying by hand is the safer default and costs nothing.
+#
+# Note what this does NOT do: apply to prod. A second environment gets its own
+# workflow with an environment protection rule and a human approval.
+# =============================================================================
+
+name: deploy
+
+on:
+  pull_request:
+    paths: ["aws/infra/**", "aws/src/**", "aws/web/**"]
+  push:
+    branches: [main]
+    paths: ["aws/infra/**", "aws/src/**", "aws/web/**"]
+
+permissions:
+  contents: read
+  id-token: write # required for OIDC - this is what replaces stored AWS keys
+  pull-requests: write
+
+env:
+  TF_VERSION: "1.15.8"
+  AWS_REGION: eu-central-1
+  ROLE: arn:aws:iam::<account-id>:role/github-deploy-budget-tracker
+  WORKDIR: aws/infra/envs/dev
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKDIR }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # No access keys anywhere. GitHub mints a short-lived OIDC token, AWS
+      # trades it for credentials that expire in an hour, and the trust policy
+      # limits that to this repository.
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Format check
+        run: terraform fmt -check -recursive ../..
+
+      - name: Init
+        run: terraform init -input=false
+
+      - name: Validate
+        run: terraform validate
+
+      - name: Plan
+        id: plan
+        run: terraform plan -input=false -lock-timeout=5m -out=tfplan
+
+      - name: Show the plan on the pull request
+        if: github.event_name == 'pull_request'
+        run: terraform show -no-color tfplan | tail -c 50000 >> "$GITHUB_STEP_SUMMARY"
+
+      # Only on main, and only the plan that was just reviewed - passing the
+      # saved plan file is what stops a race between plan and apply.
+      - name: Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -input=false -lock-timeout=5m tfplan
+
+      # index.html is uploaded with cache-control: no-cache, so this is a second
+      # safeguard for the edge that already has it.
+      - name: Invalidate CloudFront
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$(terraform output -raw cloudfront_distribution_id)" \
+            --paths "/*"

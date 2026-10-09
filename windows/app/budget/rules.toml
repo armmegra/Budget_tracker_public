@@ -1,0 +1,275 @@
+# The household the app starts from: three groups to make your own, and the rent.
+#
+# Food, Road and Medicine, each with a limit; Rent, which carries what you pay
+# for the roof and nothing else; and the groups the app needs for its own
+# bookkeeping. Rename them, remove them, add your own - from inside the app.
+# The three example months in examples/ are written for these groups, and
+# every figure in them is invented.
+#
+# Editing this file by hand is optional. Keep the original if you do: a file
+# the app cannot read stops it at start-up, with a message naming the key.
+
+version = 1
+
+# =============================================================================
+# GROUPS
+# =============================================================================
+# Minor groups roll into major groups. Each major has a tier:
+#
+#   NECESSARY   makes up the first Total
+#   FREQUENT    added on top of it
+#   OCCASIONAL  one-off groups, also added on top
+#   EXCLUDED    shown, never added to anything
+#
+# `limit` is in thousands: 30 means 30,000 of whatever you write in.
+
+[groups]
+# Must equal the limits below, added up.
+limit_total = 48
+
+# Order of the limits box.
+limit_order = ["Food", "Road", "Medicine"]
+
+# Order of the minor-groups page.
+minor_order = [
+  "Rent",
+  "Food",
+  "Road",
+  "Medicine",
+  "Refunds",
+  "Withdrawal",
+  # Counted nowhere, but listed so an early part of it can be seen arriving.
+  "Salary",
+]
+
+# Groups the engine needs by their job, whatever they are called. All name a
+# minor group except `rent`, which names a major.
+[groups.roles]
+salary = "Salary"
+reimbursements = "Refunds"
+withdrawal = "Withdrawal"
+savings = "Savings"
+rent_lump = "Rent payment"
+rent = "Rent"
+elsewhere = "Elsewhere"
+
+# --- what you pay for the roof ------------------------------------------------
+
+# The rent itself, and nothing else: its figure is the payment your notes
+# record ("9400 rent"), or the last one until a new payment arrives. A group
+# that carries the rent must hold nothing else - anything else written in it
+# would be replaced by that figure.
+[[groups.majors]]
+name = "Rent"
+tier = "NECESSARY"
+minors = []
+
+# --- the three groups to make your own ---------------------------------------
+
+# Anything eaten or drunk, bought anywhere.
+[[groups.majors]]
+name = "Food"
+tier = "NECESSARY"
+minors = ["Food"]
+limit = 30
+
+# Fares, fuel, tickets - however you move.
+[[groups.majors]]
+name = "Road"
+tier = "NECESSARY"
+minors = ["Road"]
+limit = 10
+
+# The chemist, the doctor, the dentist.
+[[groups.majors]]
+name = "Medicine"
+tier = "NECESSARY"
+minors = ["Medicine"]
+limit = 8
+
+# --- money coming back -------------------------------------------------------
+
+# Income: refunds, and any credit nothing else explains.
+[[groups.majors]]
+name = "Refunds"
+tier = "NECESSARY"
+income = true
+minors = ["Refunds"]
+
+# --- set aside: shown in full, added to nothing ------------------------------
+
+# What a month is measured against, money only moved, and the rent payment
+# itself - the Rent group carries the rent figure.
+[[groups.majors]]
+name = "Set aside"
+tier = "EXCLUDED"
+minors = ["Salary", "Savings", "Withdrawal", "Rent payment", "Elsewhere"]
+
+# =============================================================================
+# CLASSIFY
+# =============================================================================
+# Patterns are regular expressions, case-insensitive, tried on the words after
+# a line's amount. Single quotes keep backslashes literal. "@name" stands for
+# an entry of [classify.patterns].
+#
+# There are few rules here on purpose: a line the rules do not know becomes a
+# question, and answering it once - or teaching the app the word - is how this
+# household learns your own words.
+
+[classify]
+
+# Groups that name a shop rather than a thing. "Parcels" is not a group yet;
+# it becomes one the first time a parcel line is placed there.
+platforms = ["Parcels"]
+platform_words = '\bparcels?\b'
+
+# Outings that take every fare in their block: [pattern, group]. None to start.
+contexts = []
+
+# Like a context, but it takes the fares only when no food was bought in the
+# same block.
+appointment = ['\bappointment\b', "Appointments"]
+
+# First match wins: put the narrow patterns above the broad ones.
+rules = [
+  ['\bsalary\b|\bwages\b|\bpayslip\b', "Salary"],
+  ['\batm\b|cash machine', "Withdrawal"],
+  ['\bsavings\b', "Savings"],
+  ['\brent\b|\blandlord\b', "Rent payment"],
+  ['\bbus\b|\btaxi\b|\btrain\b|\btickets?\b|\bfuel\b|\bpetrol\b|\bfares?\b|\btram\b', "Road"],
+  ['\bchemist\b|\bpharmacy\b|\bpills?\b|\bdoctor\b|\bdentist\b|\bplasters?\b|\bsyrup\b', "Medicine"],
+  ["@food_words", "Food"],
+  ['\bparcels?\b', "Parcels"],
+]
+
+# Each: group = [question text, [groups to offer]]. None to start.
+[classify.context_questions]
+
+# Patterns kept by name; a list becomes one pattern, items joined by |.
+[classify.patterns]
+# Eaten where bought.
+meals = ['\bcafe\b', '\bsoup\b', '\bpie\b', '\bsandwich\b']
+# Anything edible.
+food_words = [
+  '\bfood\b', 'grocer', '\bmilk\b', '\beggs\b', '\bfruit\b', '\bvegetables\b',
+  '\bcheese\b', '\brice\b', '\bpasta\b', '\bbutter\b', '\byoghurt\b',
+  '\bcafe\b', '\bsoup\b', '\bpie\b', '\bsandwich\b',
+  # Drink: food by default, and always asked about (see [classify.alcohol]).
+  '\bwine\b', '\bbeer\b',
+]
+# Places rather than things. Plain words, so "70 pub" reads as food.
+pubs = '\bpub\b|\bbar\b'
+named_restaurants = '\brestaurant\b|\bcanteen\b'
+# Words that mean the food went home rather than being eaten out.
+groceries = '\bfood\b|grocer|\bmilk\b|\beggs\b|\brice\b|\bpasta\b'
+
+# How food money moves. One line takes it all: cash, card, and the fares of a
+# trip to the shops.
+[classify.food]
+cash = "Food"
+card = "Food"
+taxi = "Road"
+
+# A day out, paid for as one: the way there, the fares on the far side, and
+# meals eaten there. `fare` is the least single journey that reads as one, set
+# here above any ordinary fare, so no day is gathered until you lower it.
+[classify.trip]
+road = "Road"
+taxi = "Road"
+restaurants = "Food"
+fare = 100000
+legs = []
+
+# Ticket prices: a bare amount at one of these is a fare. Add your own.
+[classify.fares]
+tickets = []
+
+# Drink goes to Food by default and is always asked about.
+[classify.alcohol]
+words = '\bwine\b|\bbeer\b'
+celebration = "Celebrations"
+
+# Costs split with somebody else:
+#   settlement  money from them, or paid to square up
+#   named       money that only mentions them
+[classify.settlements]
+partner = "a friend"
+group = "Shared"
+settlement = '\bsettled up\b|\bsquared up\b'
+named = '\bshared with\b'
+
+# A credit that says what it is: "+ 1200 refund" goes to Refunds. Only money
+# coming in is read this way, so a purchase with part of it handed back,
+# "740 yarn (-210 refund)", stays with what was bought.
+[classify.reimbursements]
+named = '\brefund\b|\breturned\b'
+
+[classify.thresholds]
+# Least bare credit read as the salary that starts a month. A month opens with
+# that credit written bare - "+ 57 300", no word after it. One written
+# "+ 57 300 salary" is an ordinary credit, and the rule above puts it in Salary.
+# Set this above your ordinary credits and below your pay.
+salary_floor = 32000
+# Flowers under this go with the food; dearer ones become a group of their own.
+flower_ceiling = 140
+
+# 1: the rent is paid every month and that month's payment is its rent.
+# 2: paid every second month, each payment split across two months.
+[classify.rent]
+months = 1
+
+# =============================================================================
+# DISPLAY
+# =============================================================================
+#   per_visit_whole    one figure per visit, fares included
+#   per_visit_service  per visit, the fee and the fares shown apart
+
+[display]
+per_visit_whole = []
+per_visit_service = []
+
+# =============================================================================
+# LEFT - the figures that close each day
+# =============================================================================
+# One slot per figure, in the order written. `kind` decides how a figure moves
+# when the app continues it past the last written line:
+#
+#   card   account balance; card payments, salary, refunds and savings move it
+#   cash   cash in hand; everything else, plus withdrawals from the account
+#   purse  an allowance, refilled on a weekday, spent by the minors it lists
+#   carry  stays as written
+#
+# `unit` is "whole" for a figure written in full, "thousands" otherwise (the
+# default). A label goes before its figure unless `place = "after"`.
+#
+# Writing such a line is optional: skip it and nothing here matters.
+
+[left]
+
+# "purse 6.8": cash in hand, in thousands.
+[[left.slots]]
+id = "purse"
+label = "purse"
+kind = "cash"
+decimals = 1
+
+# "account 62730": the account, written in full.
+[[left.slots]]
+id = "account"
+label = "account"
+kind = "card"
+unit = "whole"
+decimals = 0
+
+# =============================================================================
+# NOTES - the words that make a line an instruction rather than a thing bought
+# =============================================================================
+# The rest are the app's own English: "card", "tips", "do not count, previous
+# month" and so on.
+
+[notes]
+# This household gathers no days out (see [classify.trip]), so no word marks a
+# line as one of their fares: "160 taxi" is an ordinary line, placed by the
+# rules above. Put your own words here if you ever want days out gathered.
+taxi = 'fare on a gathered day'
+road = 'the way to a gathered day'

@@ -1,0 +1,3195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Budget</title>
+<style>
+  :root {
+    --ink: #1c1c1e;  --dim: #6b6b70;  --rule: #d3d3d8;  --bg: #fbfbfa;
+    --green: #3f9d5a;
+    --yellow: #e5bc3c;
+    --red: #c8482f;
+    --blue: #4a8fc7;
+    --income: #e5bc3c;
+    --saved: #ffd84d;
+    --overspent: #ff4d3d;
+    --adjusted: #d8b4fe;
+    --fs-major: 16px;
+    --fs-value: 12px;
+    --fs-minor: 13.5px;
+    --fs-total: 15px;
+    --fs-limit: 13px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1300px; margin: 0 auto; }
+  .chart { overflow-x: auto; }
+  header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 20px; margin: 0 0 16px; font-weight: 600; }
+  nav { margin-left: auto; display: flex; gap: 8px; }
+  button, select, nav a {
+    font: inherit; padding: 5px 11px; border: 1px solid var(--rule); border-radius: 6px;
+    background: #fff; color: var(--ink); cursor: pointer;
+  }
+  nav a { text-decoration: none; display: inline-block; }
+  nav button[data-view="questions"] { position: relative; }
+  nav .qmark { position: absolute; right: 3px; bottom: 1px; color: #e0301e;
+               font-size: 12px; font-weight: 700; line-height: 1; pointer-events: none; }
+  button:hover, nav a:hover { border-color: var(--dim); }
+  button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .layout { display: grid; grid-template-columns: 1fr 190px; gap: 28px; align-items: start; }
+  .limits {
+    border: 1px solid var(--ink); border-radius: 4px; padding: 10px 12px;
+    font-size: 13px; line-height: 1.7;
+  }
+  .limits { font-size: var(--fs-limit); }
+  .limits h2 {
+    font-size: var(--fs-limit); margin: 0 0 4px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .banner {
+    border: 1px solid var(--rule); border-left: 3px solid var(--green);
+    border-radius: 6px; padding: 12px 14px; margin: 0 0 18px;
+    background: #fff; font-size: 14px; line-height: 1.6;
+  }
+  .banner b { display: block; margin-bottom: 4px; }
+  .banner b.inline { display: inline; }
+  .colhead, .minorhead {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--dim); font-size: var(--fs-limit); margin: 0 0 6px;
+  }
+  .minorhead { margin: 0 0 8px; }
+  .minorhead span, .colhead span { letter-spacing: .04em; }
+  .colhead .gear, .minorhead .gear { padding: 0 7px; }
+  .left .pick {
+    cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px;
+  }
+  .left .pick:hover { color: var(--blue); }
+  .totals { font-size: var(--fs-total); }
+  .bar-name { font-size: var(--fs-major); }
+  .bar-value { font-size: var(--fs-value); }
+  .limits div { display: flex; justify-content: space-between; gap: 12px; }
+  hr { border: 0; border-top: 1px solid var(--ink); margin: 26px 0 18px; }
+  .totals { font-variant-numeric: tabular-nums; }
+  .totals p { margin: 4px 0; }
+  .totals b { font-weight: 600; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 3px 10px; border-bottom: 1px solid var(--rule); }
+  th:first-child, td:first-child { text-align: left; }
+  .minors {
+    display: grid; grid-template-columns: max-content 1fr max-content;
+    column-gap: 18px; row-gap: 4px; align-items: baseline;
+    font-size: var(--fs-minor); font-variant-numeric: tabular-nums;
+  }
+  .minors .name { font-weight: 600; white-space: nowrap; }
+  .minors .vals { word-spacing: 1px; line-height: 1.65; }
+  .minors .sum {
+    white-space: nowrap; font-size: 1.15em; font-weight: 500; color: var(--ink);
+  }
+  .minors .sub .name, .minors .sub-name { padding-left: 26px; font-weight: 500; }
+  .held { margin: 12px 0 0; font-size: var(--fs-minor); }
+  .held p { margin: 2px 0; }
+  .muted { color: var(--dim); }
+  .left {
+    margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--rule);
+    font-size: var(--fs-left); font-variant-numeric: tabular-nums; font-weight: 500;
+  }
+  .left .muted { font-size: .65em; font-weight: 400; }
+  .left .lbl { font-size: .8em; opacity: .72; font-weight: 400; }
+  .left .lfig { cursor: pointer; text-decoration: underline dotted;
+                text-underline-offset: 3px; }
+  .left .lfig:hover { color: var(--blue); }
+  .left .lval { font-size: 12px; padding: 1px 7px; vertical-align: middle; }
+  .left input { font-size: 14px; }
+  .q { border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; margin: 10px 0; background:#fff; }
+  .q code { background: #f2f2f4; padding: 1px 5px; border-radius: 4px; }
+  .q .ask { color: var(--dim); margin: 6px 0 10px; }
+  .q input[type=text] {
+    font: inherit; font-size: 17px; width: 15rem; max-width: 100%;
+    padding: 7px 10px; border: 1px solid var(--rule); border-radius: 6px;
+    margin-right: 6px;
+  }
+  .q input[type=text]:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
+  .q button[data-group] { font-weight: 500; }
+  .err { color: var(--red); white-space: pre-wrap; }
+  .center { text-align: center; padding: 60px 0; color: var(--dim); }
+  .gear { font-size: 16px; line-height: 1; padding: 5px 9px; }
+  #settings {
+    display: none; margin: 12px 0 4px; padding: 12px 14px;
+    background: #fff; border: 1px solid var(--rule); border-radius: 8px;
+    position: sticky; top: 8px; z-index: 5;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .09);
+    max-height: 62vh; overflow-y: auto;
+  }
+  #settings.open { display: block; }
+  #settings h2 { font-size: 13px; margin: 0 0 10px; font-weight: 600; }
+  #settings label {
+    display: inline-flex; align-items: center; gap: 7px; margin: 0 18px 8px 0; font-size: 13px;
+  }
+  #settings input[type=range] { width: 116px; }
+  #settings .shown { color: var(--dim); font-variant-numeric: tabular-nums; min-width: 44px; }
+  #settings label { margin-bottom: 10px; }
+  #settings input[type=color] {
+    width: 30px; height: 24px; padding: 0; border: 1px solid var(--rule);
+    border-radius: 4px; background: none; cursor: pointer;
+  }
+  .excluded { margin-top: 10px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .excluded span { color: var(--dim); }
+  .sub { padding-left: 26px; }
+  textarea {
+    width: 100%; min-height: 260px; padding: 10px 12px; border: 1px solid var(--rule);
+    border-radius: 8px; font: 13px/1.6 ui-monospace, Consolas, "Courier New", monospace;
+    resize: vertical;
+  }
+  .add-row { display: flex; align-items: center; gap: 10px; margin: 10px 0 14px; flex-wrap: wrap; }
+  .add-row .muted { flex-basis: 100%; margin: 0; font-size: 13px; }
+  .ok { color: var(--green); }
+  .ansd {
+    color: var(--blue); opacity: .55; cursor: pointer;
+    text-decoration: underline dotted; text-underline-offset: 3px;
+  }
+  .ansd:hover { opacity: .9; }
+  .mover {
+    position: absolute; z-index: 6; background: #fff;
+    border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .09);
+    max-width: min(340px, calc(100vw - 16px));
+  }
+  .mover code { background: #f2f2f4; padding: 1px 5px; border-radius: 4px; }
+  .mover .src-line { margin: 2px 0; }
+  .day { margin: 2px 0 8px; }
+  .day .day-date { font-weight: 600; margin-bottom: 3px; }
+  .day .day-lines {
+    position: relative; max-height: 13.5em; overflow-y: auto;
+    font-family: ui-monospace, Consolas, monospace; font-size: 14px; line-height: 1.5;
+    background: #f6f6f8; border: 1px solid var(--rule); border-radius: 6px; padding: 4px 10px;
+  }
+  .day .day-lines > * { display: block; white-space: pre-wrap; min-height: 1.5em; }
+  .day .day-lines .this {
+    font-weight: 700; color: var(--ink); font-size: 17px;
+    text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px;
+  }
+  .day .day-lines span { color: var(--dim); }
+  .mover .src-date { color: var(--dim); font-size: 13px; margin-right: 6px; }
+  .mover .ask { color: var(--dim); margin: 6px 0 10px; font-size: 13px; }
+  .mover label.pr { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .mover label.pr select { flex: 1; min-width: 0; font: inherit; padding: 3px 4px; }
+  .mover button { margin: 2px 4px 2px 0; }
+  .mover input[type=text] {
+    font: inherit; padding: 5px 8px; border: 1px solid var(--rule);
+    border-radius: 6px; margin-right: 4px;
+  }
+  .mover .muted:not(:empty) { display: block; margin-top: 6px; font-size: 13px; }
+  .mover.wide { max-width: min(520px, calc(100vw - 16px)); max-height: 62vh; overflow-y: auto; }
+  .mover .erow {
+    display: flex; align-items: center; gap: 8px; padding: 4px 0;
+    border-bottom: 1px solid var(--rule); flex-wrap: wrap;
+  }
+  .mover .erow:last-of-type { border-bottom: 0; }
+  .mover .erow b { min-width: 92px; font-weight: 600; }
+  .mover .erow .muted { display: inline; margin: 0; }
+  .mover select { padding: 3px 6px; }
+  .mover .sub-minor { padding-left: 20px; font-weight: 400; }
+  .mover h3 { font-size: 13px; margin: 10px 0 4px; font-weight: 600; }
+  .mover .staged { margin: 8px 0; padding-left: 18px; font-size: 13px; }
+  .mover .staged li { margin: 2px 0; }
+  .scope { font-size: 13px; color: var(--dim); margin: 0 0 8px; }
+  .scope b { color: var(--ink); }
+  .closed {
+    font-size: 11px; border: 1px solid var(--rule); border-radius: 10px;
+    padding: 1px 8px; color: var(--dim); margin-left: 8px; vertical-align: middle;
+  }
+  .lockbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 0 0 10px; padding: 8px 12px; font-size: 13px;
+    border: 1px solid var(--rule); border-radius: 8px; background: #fff;
+  }
+  .lockbar.open { border-color: var(--yellow); }
+  .lockbar button { padding: 3px 10px; font-size: 13px; }
+  .mover label { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+  .mover label .val { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .totals .pick { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+  .movd { background: var(--adjusted); color: #111; padding: 0 4px;
+          border-radius: 4px; cursor: pointer; }
+  .plcd { cursor: pointer; border-radius: 4px; }
+  .plcd:hover { outline: 1px dashed var(--dim); outline-offset: 1px; }
+  .setby, .picker .setby {
+    background: var(--adjusted); color: #111;
+    padding: 0 5px; border-radius: 4px; font-weight: 600;
+  }
+  .picker input.figure {
+    width: 76px; font: inherit; text-align: right; padding: 2px 6px;
+    border: 1px solid var(--rule); border-radius: 5px;
+  }
+  .picker label .val { cursor: text; }
+  .totals .pick:hover { color: var(--blue); }
+  .picker { max-width: 420px; }
+  .picker li { list-style: none; }
+  .chooser { max-width: 420px; margin: 0 auto; }
+  .chooser label {
+    display: flex; align-items: center; gap: 10px; padding: 6px 2px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chooser label .muted { margin-left: auto; }
+  .chooser .go { margin-top: 14px; }
+  .backup-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  #restore-said { margin-top: 8px; font-size: 13px; }
+  #restore-said.asking { color: var(--fg); }
+  #restore-said .final { border-color: var(--red); color: var(--red); font-weight: 600; }
+  #restore-said .final[disabled] { opacity: .45; }
+  #restore-said .file { display: block; margin-bottom: 6px; }
+  .chooser .years { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 2px; }
+  .chooser .years .lbl { align-self: center; }
+
+  .cmp { display: flex; align-items: flex-start; max-width: 100%; }
+  .cmp pre { margin: 0; }
+  .cmp .names { position: sticky; left: 0; padding-right: 4px;
+                background: var(--bg); border-right: 1px solid var(--rule); }
+  .cmp .figs { overflow-x: auto; padding-left: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 data-t="app.name">Budget</h1>
+    <select id="period"></select>
+    <nav>
+      <button data-view="month" class="on" data-t="nav.month">Month</button>
+      <button data-view="add" data-t="nav.add">Add notes</button>
+      <button data-view="questions" data-t="nav.questions">Questions</button>
+      <button data-view="compare" data-t="nav.compare">Compare</button>
+      <button id="export" title="Save this month or the whole year for printing"
+              data-t="common.print" data-t-title="nav.print.title">Print…</button>
+      <a id="guide" class="gear" href="/guide" target="_blank" rel="noopener"
+         title="How to use and configure this app" data-t-title="nav.guide.title">?</a>
+      <button id="gear" class="gear" title="Options" data-t-title="nav.options">⚙</button>
+      <button id="signout" data-t="nav.signout">Sign out</button>
+    </nav>
+  </header>
+  <div id="settings">
+    <h2 id="lang-head" data-t="gear.language">Language</h2>
+    <select id="lang" aria-labelledby="lang-head"><option value="en">English</option><option value="ru">Русский</option></select>
+    <hr style="border-top:1px solid var(--rule); margin:12px 0">
+    <h2 data-t="gear.colours">Bar colours</h2>
+    <div id="swatches"></div>
+    <hr style="border-top:1px solid var(--rule); margin:12px 0">
+    <button id="reset-colours" data-t="gear.reset">Reset to defaults</button>
+    <hr style="border-top:1px solid var(--rule); margin:12px 0">
+    <h2 data-t="gear.words">Words</h2>
+    <p class="muted" style="margin:0 0 8px; font-size:13px" data-t="gear.words.text">
+      Teach the app a word - a shop's name, say - and lines carrying it book to
+      the group you choose, instead of being asked about every month.</p>
+    <div class="backup-row">
+      <button id="open-words" data-t="gear.words.open">Words you teach…</button>
+    </div>
+    <hr style="border-top:1px solid var(--rule); margin:12px 0">
+    <h2 data-t="gear.account">Account</h2>
+    <p class="muted" style="margin:0 0 8px; font-size:13px" data-t-html="gear.account.text">
+      The questions that get you back in if you forget the password. The manual
+      is the <b>?</b> beside the gear.</p>
+    <div class="backup-row">
+      <button id="open-security" data-t="gear.recovery">Recovery questions</button>
+    </div>
+    <hr style="border-top:1px solid var(--rule); margin:12px 0">
+    <h2 data-t="gear.backup">Backup</h2>
+    <p class="muted" style="margin:0 0 8px; font-size:13px" data-t="gear.backup.text">
+      One file with everything: every month's notes, every answer, the groups
+      and limits, the ticks and the figures you set yourself - and the colours
+      and sizes above, which live only in this browser.</p>
+    <div class="backup-row">
+      <button id="do-backup" data-t="gear.backup.download">Download configuration</button>
+      <button id="pick-restore" data-t="gear.backup.restore">Restore from a file…</button>
+      <input type="file" id="restore-file" accept=".json,application/json" hidden>
+    </div>
+    <div id="restore-said" class="muted"></div>
+    <hr style="border-top:1px solid var(--rule); margin:12px 0">
+    <h2 data-t="gear.wipe">Start over</h2>
+    <p class="muted" style="margin:0 0 8px; font-size:13px" data-t="gear.wipe.text">
+      Colours and sizes above live in this browser. These wipe what is stored
+      in data/ beside the app, and nothing can bring it back.</p>
+    <label><input type="radio" name="wipe" value="month">
+      <span data-t-html="gear.wipe.month" style="display:contents"><span id="wipe-month" data-t-slot="month" data-t="gear.wipe.this_month">This month</span> only - its notes, answers and ticks</span></label>
+    <label><input type="radio" name="wipe" value="onward">
+      <span data-t-html="gear.wipe.onward" style="display:contents"><span id="wipe-onward" data-t-slot="month" data-t="gear.wipe.this_month">This month</span> and every later month</span></label>
+    <label><input type="radio" name="wipe" value="all">
+      <span data-t="gear.wipe.all" style="display:contents">Everything - months, answers, groups and limits, from scratch</span></label>
+    <div><button id="do-wipe" disabled data-t="common.apply">Apply</button>
+      <span id="wipe-said" class="muted"></span></div>
+  </div>
+  <div id="app"><p class="center" data-t="common.loading">Loading…</p></div>
+</main>
+
+<script src="config.js"></script>
+
+<script>
+"use strict";
+
+const CFG = Object.assign({
+  local: true,
+}, window.BUDGET_CONFIG || {}, {
+  redirect: window.location.origin + "/",
+});
+
+const LANGS = ["en", "ru"];
+let LANG = "en";
+const T = { ru: {
+  "app.name": "Бюджет",
+  "app.title_month": "Бюджет — {month}",
+  "nav.month": "Месяц",
+  "nav.add": "Добавить записи",
+  "nav.questions": "Вопросы",
+  "nav.compare": "Сравнение",
+  "nav.signout": "Выйти",
+  "nav.options": "Настройки",
+  "nav.guide.title": "Как пользоваться приложением и как его настроить",
+  "nav.print.title": "Сохранить этот месяц или весь год для печати",
+  "common.print": "Печать…",
+  "common.loading": "Загрузка…",
+  "common.add": "Добавить",
+  "common.apply": "Применить",
+  "common.applying": "Применение…",
+  "common.cancel": "Отмена",
+  "common.done": "Готово",
+  "common.ok": "ОК",
+  "common.other": "Другое…",
+  "common.remove": "Удалить",
+  "common.rename": "Переименовать",
+  "common.saving": "Сохранение…",
+  "common.group_enter": "название группы, затем Enter",
+
+  "gear.language": "Язык",
+  "gear.colours": "Цвета полос",
+  "gear.colour.green": "Потрачено в пределах лимита",
+  "gear.colour.yellow": "Ещё доступно",
+  "gear.colour.red": "Сверх лимита",
+  "gear.colour.blue": "Лимит не задан",
+  "gear.colour.income": "Доход",
+  "gear.colour.adjusted": "Выделение суммы, заданной вами",
+  "gear.sizes": "Размеры текста",
+  "gear.size.major": "Названия основных групп",
+  "gear.size.value": "Суммы на полосах",
+  "gear.size.minor": "Подгруппы",
+  "gear.size.left": "Строка остатка",
+  "gear.size.total": "Итоги",
+  "gear.size.limit": "Блок лимитов",
+  "gear.reset": "Вернуть исходные",
+  "gear.words": "Слова",
+  "gear.words.text": "Научите приложение слову — например, названию магазина, — и строки с этим словом будут сразу относиться к выбранной вами группе, а не вызывать вопрос каждый месяц.",
+  "gear.words.open": "Выученные слова…",
+  "gear.account": "Учётная запись",
+  "gear.account.text": "Вопросы, по которым вы снова войдёте, если забудете пароль. Справка — это <b>?</b> рядом с шестерёнкой.",
+  "gear.recovery": "Контрольные вопросы",
+  "gear.backup": "Резервная копия",
+  "gear.backup.text": "Один файл со всем сразу: записи каждого месяца, все ответы, группы и лимиты, отметки и суммы, заданные вами, — а также цвета и размеры выше, которые хранятся только в этом браузере.",
+  "gear.backup.download": "Скачать конфигурацию",
+  "gear.backup.restore": "Восстановить из файла…",
+  "gear.wipe": "Начать заново",
+  "gear.wipe.text": "Цвета и размеры выше хранятся в этом браузере. Эти варианты удаляют то, что хранится в папке data/ рядом с приложением, и вернуть это будет нельзя.",
+  "gear.wipe.this_month": "Этот месяц",
+  "gear.wipe.month": "{month} — только он: его записи, ответы и отметки",
+  "gear.wipe.onward": "{month} и все последующие месяцы",
+  "gear.wipe.all": "Всё — месяцы, ответы, группы и лимиты, с нуля",
+  "gear.wipe.sure": "Это нельзя отменить.",
+  "gear.wipe.yes": "Да, удалить",
+  "gear.wipe.no": "Нет, оставить всё",
+  "gear.wipe.running": "Удаление…",
+  "gear.wiped.months": "{n} {n|месяц|месяца|месяцев}",
+  "gear.wiped.answers": "{n} {n|ответ|ответа|ответов}",
+  "gear.wiped.group_edits": "{n} {n|правка групп|правки групп|правок групп}",
+  "gear.wiped.scoped_edits": "{n} {n|правка по месяцам|правки по месяцам|правок по месяцам}",
+  "gear.wipe.done": "Удалено: {list}{months}.",
+  "gear.wipe.nothing": "Удалять нечего{months}.",
+
+  "backup.collecting": "Сбор данных…",
+  "backup.saved": "Сохранено: {months} {months|месяц|месяца|месяцев} и {answers} {answers|ответ|ответа|ответов}, вместе с вашими цветами и размерами.",
+  "restore.not_json": "Файл {file} не читается как JSON.",
+  "restore.not_backup": "Файл {file} — не резервная копия бюджета.",
+  "restore.holds": "— {months} {months|месяц|месяца|месяцев}, {answers} {answers|ответ|ответа|ответов}{saved}.",
+  "restore.saved_on": " (сохранён {date})",
+  "restore.sure": "Это заменит <b>всё</b>, что сейчас хранится: каждый месяц, каждый ответ, группы и лимиты. Вы уверены?",
+  "restore.last": "То, что хранится сейчас, уже не вернуть.",
+  "restore.final": "Да, безвозвратно",
+  "restore.running": "Восстановление…",
+  "restore.done": "Восстановлено: {months} {months|месяц|месяца|месяцев} и {answers} {answers|ответ|ответа|ответов}.",
+  "restore.other_rules": "Файл сделан с другими правилами, поэтому его месяцы здесь читаются по правилам этого приложения.",
+  "restore.reload_failed": "{done} Не удалось обновить страницу — обновите её, чтобы увидеть результат: {error}",
+
+  "print.month.what": "По две страницы A4 на месяц: основные группы и итоги, затем подгруппы и строка остатка. Суммы, отнесённые вашими ответами, печатаются подчёркнутыми.",
+  "print.compare.what": "{n} {n|месяц|месяца|месяцев}, разметка для A4. Если месяцев больше пяти, таблица продолжается на следующей странице, и на каждой повторяются названия групп, так что любую страницу можно читать отдельно.",
+  "print.year": "Год",
+  "print.what": "Что печатать",
+  "print.all_year": "Весь {year} год — все месяцы",
+  "print.month": "{month} ({n} {n|день|дня|дней})",
+  "print.no_year": "{month} — год не записан",
+  "print.need_year": "Для печати целого года у месяцев должен быть записан год — добавьте месяц заново, чтобы год записался.",
+  "print.rtf": "Word (.rtf)",
+  "print.txt": "Текст (.txt)",
+  "print.building": "Подготовка файла…",
+
+  "empty.title": "Пока ничего не добавлено — так будет выглядеть ваш месяц.",
+  "empty.text": "Все группы на своих местах, пока пустые. Переименуйте, добавьте или удалите их кнопками {dots}, а потом вставьте первый месяц через {add}. {guide} объясняет и то и другое, а также всё остальное на этой странице.",
+  "empty.guide": "Справка",
+
+  "edit.majors.title": "Добавить, переименовать или удалить основные группы",
+  "edit.limits.title": "Добавить лимит, изменить его сумму или перевести его на другую группу",
+  "edit.minors.title": "Добавить, переименовать или удалить подгруппу либо перенести её в другую основную группу",
+  "month.majors": "основные группы",
+  "month.minors": "подгруппы",
+  "limits.title": "Лимиты",
+  "month.total": "Итого",
+  "month.total_colon": "Итого:",
+  "month.pick.title": "выбрать, какие разовые группы учитывает этот итог",
+  "month.setby.title": "эту сумму задали вы; по записям выходит {n}",
+  "month.figure.answered": "отнесено по вашему ответу — нажмите, чтобы перенести",
+  "month.figure.moved": "перенесено вами — нажмите, чтобы перенести ещё раз или вернуть на место",
+  "month.figure.placed": "нажмите, чтобы перенести в другую группу",
+  "month.recounted": "(пересчитано: остаток на {date} + ещё {n} {n|день|дня|дней})",
+  "month.no_left": "в этих записях нет строки остатка — нажмите, чтобы настроить её",
+  "month.unanswered": "{n} {n|вопрос|вопроса|вопросов} без ответа.",
+  "month.held": "Перенесено в другой месяц — в этом не учитывается, а будет учтено там, когда вы добавите его записи:",
+  "month.held.before": "предыдущий месяц",
+  "month.moved": "Здесь только строки из других месяцев, которые относятся к этому. Добавьте его собственные записи — новым месяцем или через «Добавить в» — и они окажутся вместе.",
+  "near.ask": "Вы имели в виду «{near}»?",
+  "near.yes": "Да, «{near}»",
+  "near.no": "Нет, новая группа «{typed}»",
+  "left.word": "Остаток",
+  "left.value": "сумма…",
+  "left.value.title": "ввести эту сумму самому",
+  "left.value.set": "эту сумму задали вы; по записям выходит {n} — нажмите, чтобы изменить",
+  "left.value.edit": "нажмите, чтобы ввести эту сумму самому",
+  "left.value.prompt": "сумма",
+  "left.value.back": "Вернуть сумму из записей",
+  "left.value.nan": "Введите число.",
+  "month.counted_start": "(посчитано от ваших начальных сумм)",
+  "month.counted_before": "(посчитано от остатка прошлого месяца)",
+  "month.no_left_line": "(в записях нет строки остатка)",
+  "left.edit.title": "переименовать эту строку или добавить и убрать суммы в ней",
+  "reading.saved": "Всего сэкономлено",
+  "reading.overspent": "Всего перерасходовано",
+  "lock.closed": "<b>{period} закрыт.</b> Месяцы закрываются через три месяца после окончания, чтобы старую сумму нельзя было изменить случайным нажатием.",
+  "lock.unlocked": "<b>{period} открыт.</b> Изменения, внесённые сейчас, сохранятся навсегда; после перезагрузки страницы месяц просто снова закроется.",
+  "lock.unlock": "Открыть этот месяц",
+  "lock.again": "Снова закрыть",
+  "lock.sure": "Этот месяц, возможно, уже напечатан — исправление изменит эти суммы.",
+  "lock.yes": "Да, открыть",
+  "lock.no": "Нет, пусть останется закрытым",
+  "closed.say": "{period} закрыт — перейдите к нему в разделе «Месяц», нажмите «Открыть этот месяц» и попробуйте ещё раз.",
+  "picker.head": "Учитывается во втором итоге:",
+  "picker.figure.title": "нажмите, чтобы задать другую сумму",
+  "picker.help": "Нажмите на сумму, чтобы задать другую, — полоса самой группы по-прежнему показывает то, что в записях.",
+
+  "scope.ask": "К каким месяцам применить изменения?",
+  "scope.every": "Все месяцы, и прошлые тоже",
+  "scope.every_warn": "Прошлые месяцы пересчитаются по новым группам: их итоги изменятся, а строки удалённой группы станут там вопросами.",
+  "scope.further": "{period} и все последующие месяцы",
+  "scope.line.always": "Изменения касаются <b>всех месяцев</b>.",
+  "scope.line.onward": "После применения изменения коснутся <b>месяца {period} и всех последующих</b>.",
+  "scope.dropped": "Отброшено {n} {n|неприменённое изменение|неприменённых изменения|неприменённых изменений}.",
+  "editor.limits": "Изменить лимиты…",
+  "editor.majors": "Изменить основные группы…",
+  "editor.minors": "Изменить подгруппы…",
+  "editor.left": "Изменить строку остатка…",
+  "editor.words": "Изменить выученные слова…",
+  "staged.none": "Пока в очереди ничего нет — здесь появятся ваши изменения.",
+  "staged.discard": "Отбросить",
+  "staged.count": "В очереди {n} {n|изменение|изменения|изменений}.",
+  "staged.checking": "Проверка…",
+  "staged.confirm": "{n} {n|изменение|изменения|изменений} для месяцев: {months}.",
+  "staged.yes": "Да, применить",
+  "staged.no": "Нет, пока не применять",
+  "op.add_major": "добавить группу «{name}»{limit}",
+  "op.limit": ", лимит {n}",
+  "op.remove_major": "удалить группу «{major}»",
+  "op.remove_major_to": "удалить группу «{major}», её подгруппы — в «{to}»",
+  "op.rename": "переименовать «{old}» в «{new}»",
+  "op.reroute": "учитывать «{minor}» в группе «{major}»",
+  "op.add_minor": "добавить «{name}» в группу «{major}»",
+  "op.remove_minor": "удалить «{minor}»",
+  "op.set_limit": "лимит для «{major}»: {value}",
+  "op.drop_limit": "убрать лимит у «{major}»",
+  "op.rename_limit": "подписать лимит группы «{major}» как «{label}»",
+  "op.move_limit": "перенести лимит группы «{major}» на «{to}»",
+  "op.learn_word": "научить слову «{word}» → «{group}»",
+  "op.forget_word": "забыть слово «{word}»",
+  "op.left_rename": "подписать «{slot}» как «{label}»",
+  "op.left_after": "«{slot}»: подпись после суммы",
+  "op.left_before": "«{slot}»: подпись до суммы",
+  "op.left_kind": "«{slot}» считается как «{kind}»",
+  "op.left_add": "добавить «{label}» в строку остатка",
+  "op.left_remove": "убрать «{slot}» из строки остатка",
+  "op.left_reorder": "строка остатка в новом порядке",
+  "op.left_reset": "вернуть исходную строку остатка",
+
+  "limits.help": "Каждая строка следит за одной основной группой. «Удалить» освобождает группу, «Следить за…» переключает строку на другую.",
+  "limits.value": "Изменить сумму",
+  "limits.watch": "Следить за…",
+  "limits.add": "Добавить лимит",
+  "limits.add.help": "Выберите группу, у которой лимита ещё нет, или введите название: название существующей группы означает её саму, а новое название создаст новую группу вместе с лимитом.",
+  "limits.new_group": "— новая группа —",
+  "limits.new_name": "название новой группы",
+  "limits.thousands": "в тысячах",
+  "limits.shown_as": "подпись (необязательно)",
+  "limits.shown_as.help": "название в блоке лимитов, если оно отличается от названия группы",
+  "limits.shown_name": "подпись",
+  "limits.positive": "Нужно положительное число (в тысячах).",
+  "limits.all_have": "У всех групп уже есть лимит.",
+  "limits.watch_pick": "следить за…",
+  "limits.pick": "Выберите группу или введите название новой.",
+  "limits.choose": "Выберите группу…",
+  "limits.has_one": "У группы «{name}» уже есть лимит — измените его кнопкой «Изменить сумму» в её строке.",
+  "limits.keep_one": "Выбрана группа «{group}» и введено «{name}» — оставьте что-то одно.",
+
+  "words.title": "Выученные слова",
+  "words.help": "Строка с одним из этих слов сразу относится к его группе, без вопроса. То, что вы отвечаете или переносите сами, всё равно важнее, а если к одной строке подходят два слова, решает более длинное.",
+  "words.forget": "Забыть",
+  "words.none": "Пока нет ни одного слова.",
+  "words.teach_one": "Научить слову",
+  "words.placeholder": "слово или два",
+  "words.teach": "Научить",
+  "words.too_short": "Слово из трёх букв или длиннее.",
+
+  "majors.title": "Основные группы",
+  "majors.help": "Основная группа — это заголовок: одна полоса на диаграмме, одна сумма в итоге и не больше одного лимита. «Удалить» убирает её вместе с подгруппами, а их строки уходят в «Вопросы», чтобы вы отнесли их заново. Одна группа для расходов остаётся всегда.",
+  "majors.limit": " · лимит {n}",
+  "majors.minors": " · {n} {n|подгруппа|подгруппы|подгрупп}",
+  "majors.add": "Добавить основную группу",
+  "majors.add.help": "Уровень определяет, в какой итог она попадает. Лимит необязателен, его можно задать позже.",
+  "majors.limit_optional": "лимит (необязательно)",
+  "tier.necessary": "необходимая",
+  "tier.frequent": "частая",
+  "tier.occasional": "разовая",
+  "groups.name": "название",
+  "groups.new_name": "новое название",
+  "groups.no_name": "Дайте группе название.",
+  "groups.bad_limit": "Лимит — положительное число (в тысячах) или пустое поле.",
+  "groups.no_major": "Выберите основную группу, к которой она относится.",
+  "minors.title": "Подгруппы",
+  "minors.help": "Каждая подгруппа входит в одну основную группу, и несколько подгрупп могут входить в одну и ту же — так три строки складываются в одну сумму. «Перенести в…» переносит подгруппу в другое место. «Удалить» убирает её: строки, которые в ней были, уходят в «Вопросы», чтобы вы отнесли их заново.",
+  "minors.under": "в группе «{name}»",
+  "minors.route": "перенести в…",
+  "minors.none": "Подгрупп пока нет.",
+  "minors.add": "Добавить подгруппу",
+  "minors.which_major": "в какую основную группу…",
+  "minors.aside": "Не учитываются ни в одном итоге: их можно переименовать или удалить, но не перенести.",
+  "minors.salary.sure": "В «{name}» попадает ваша зарплата: без этой группы строка зарплаты уйдёт в «Вопросы», и куда вы её отнесёте, там она и будет учтена. Удалить?",
+  "minors.salary.yes": "Да, удалить",
+  "minors.salary.no": "Нет, оставить",
+
+  "left.title": "Строка остатка",
+  "left.help": "По строке на каждую сумму, в том порядке, в каком они записаны. Подпись печатается до или после суммы; вид определяет, как пересчитывается месяц, который ещё не дописан.",
+  "left.name_after": "подпись после",
+  "left.name_before": "подпись до",
+  "left.rename": "Подписать",
+  "left.to_after": "→ после",
+  "left.to_before": "→ до",
+  "left.add": "Добавить сумму",
+  "left.name": "подпись",
+  "left.reset": "Вернуть исходную строку",
+  "left.no_name": "Введите подпись.",
+  "kind.card": "остаток на карте",
+  "kind.cash": "наличные на руках",
+  "kind.purse": "кошелёк на неделю",
+  "kind.carry": "перенесено",
+
+  "move.where": "Куда это отнести?",
+  "move.move": "Перенести",
+  "move.moving": "Перенос…",
+  "move.put_back": "Вернуть на место",
+  "move.put_back.title": "отменить ваш перенос — пусть снова решают правила",
+  "move.putting_back": "Возврат на место…",
+
+  "questions.open": "Ещё без ответа: {n} {n|вопрос|вопроса|вопросов}.",
+  "questions.all_answered": "На все вопросы здесь уже есть ответы.",
+  "questions.none": "Вопросов нет.",
+  "questions.again": "Задать все вопросы заново",
+  "questions.again.sure": "Ваши ответы за этот месяц будут забыты — записи останутся.",
+  "questions.again.yes": "Да, спросить заново",
+  "questions.again.no": "Нет, оставить ответы",
+  "questions.forgetting": "Сброс ответов…",
+  "questions.again.done": "{answers|Забыт|Забыто|Забыто} {answers} {answers|ответ|ответа|ответов} — снова {questions} {questions|вопрос|вопроса|вопросов}.",
+
+  "add.to": "Добавить в",
+  "add.new_month": "— новый месяц (в записях есть строка с зарплатой) —",
+  "add.replace": "заменить сохранённую копию",
+  "add.replace.title": "Исправление: перезаписать сохранённую копию этого периода, даже если она выглядит полнее, — повреждённая копия по самому устройству полнее чистого файла. Только при выбранном «— новый месяц —».",
+  "add.or": "или",
+  "add.choose": "Выбрать скриншоты…",
+  "add.none_chosen": "Скриншоты не выбраны",
+  "add.chosen": "{n|Выбран|Выбрано|Выбрано} {n} {n|скриншот|скриншота|скриншотов}",
+  "add.read": "Распознать скриншоты",
+  "add.help": "Вставьте записи точно так, как они написаны: даты, ежедневные строки <code>Left:</code>, всё остальное. Дни, которые уже есть, заменяются, а не удваиваются, поэтому снова вставить скриншот, частично повторяющий прежний, безопасно. <b>Если добавляете месяц по неделе: каждый раз копируйте всю запись с самой первой строки и оставляйте здесь «новый месяц».</b> Строка с зарплатой в начале говорит приложению, какой это месяц, а более полная копия просто заменяет сохранённую. Выбирайте месяц по названию, только когда вставляете одни новые дни, без этого начала. Несколько месяцев в одной вставке? Заканчивайте каждый строкой <code>######</code> перед следующей зарплатой, иначе они сольются в один.",
+  "add.help.household_ru": "Вставьте записи точно так, как они написаны: даты, ежедневные строки <code>Остаток:</code> (подходит и <code>Left:</code>), всё остальное. Дни, которые уже есть, заменяются, а не удваиваются, поэтому снова вставить скриншот, частично повторяющий прежний, безопасно. <b>Если добавляете месяц по неделе: каждый раз копируйте всю запись с самой первой строки и оставляйте здесь «новый месяц».</b> Строка с зарплатой в начале говорит приложению, какой это месяц, а более полная копия просто заменяет сохранённую. Выбирайте месяц по названию, только когда вставляете одни новые дни, без этого начала. Несколько месяцев в одной вставке? Заканчивайте каждый строкой <code>######</code> перед следующей зарплатой, иначе они сольются в один.",
+  "add.placeholder": "12.01&#10;26 bus&#10;180 soup&#10;26 bus&#10;Left: purse 2.9, account 61110",
+  "add.placeholder.household_ru": "12.01&#10;26 автобус&#10;180 суп&#10;26 автобус&#10;Остаток: наличные 2,9, счёт 61110",
+  "add.pick_first": "Сначала выберите скриншоты.",
+  "add.reading": "Распознавание: {i} из {n}…",
+  "add.read_done": "{n|Распознан|Распознано|Распознано} {n} {n|скриншот|скриншота|скриншотов} — ПРОВЕРЬТЕ текст ниже, затем нажмите «Добавить».",
+  "add.nothing": "Добавлять нечего.",
+  "add.adding": "Добавление…",
+  "add.result": "{month}: {before} → {after} {after|день|дня|дней}{next}",
+  "add.result.next": " (следующий месяц: {list})",
+  "add.closed": "{error} — или сначала перейдите к этому месяцу и нажмите «Открыть этот месяц».",
+
+  "compare.need_two": "Для сравнения нужны два месяца.",
+  "compare.tick": "Отметьте месяцы для сравнения.",
+  "compare.run": "Сравнить",
+  "compare.print.title": "Таблица в нынешнем виде, разметка для A4",
+  "compare.average": "Среднее",
+  "compare.average.title": "Среднее ровно по отмеченным месяцам — снимите отметку с месяца, который ещё не дописан",
+  "compare.average_year": "Среднее за год:",
+  "compare.no_months": "В этом году ещё нет месяцев.",
+  "compare.tick_two": "Отметьте хотя бы два.",
+
+  "month.January": "Январь",
+  "month.February": "Февраль",
+  "month.March": "Март",
+  "month.April": "Апрель",
+  "month.May": "Май",
+  "month.June": "Июнь",
+  "month.July": "Июль",
+  "month.August": "Август",
+  "month.September": "Сентябрь",
+  "month.October": "Октябрь",
+  "month.November": "Ноябрь",
+  "month.December": "Декабрь",
+  "month.undated": "без даты",
+} };
+const T_SEEN = new Map();
+const PLURAL = {};
+let HOUSEHOLD = LANGS.includes(CFG.household) ? CFG.household : "en";
+let GEAR = null;
+
+function t(key, en, vals = {}) {
+  T_SEEN.set(key, en);
+  let text = LANG === "en" ? en : (T[LANG]?.[key] ?? en);
+  if (text !== null && typeof text === "object") text = pluralOf(text, vals.n, LANG);
+  return fill(text, vals, LANG);
+}
+
+function th(key, en, vals = {}) {
+  const safe = {};
+  for (const name of Object.keys(vals)) safe[name] = esc(vals[name]);
+  return t(key, en, safe);
+}
+
+function fill(text, vals, lang) {
+  return text.replace(/\{(\w+)((?:\|[^{}|]*)+)?\}/g, (whole, name, forms) => {
+    if (!Object.prototype.hasOwnProperty.call(vals, name)) return whole;
+    if (!forms) return String(vals[name]);
+    const [one, few = one, many = few] = forms.slice(1).split("|");
+    return pluralOf({ one, few, many }, vals[name], lang);
+  });
+}
+
+function pluralOf(forms, n, lang) {
+  const rule = (PLURAL[lang] ||= new Intl.PluralRules(lang)).select(Number(n));
+  return forms[rule] ?? forms.many ?? forms.other ?? forms.one;
+}
+
+function monthLabel(name, year) {
+  const shown = LANG === "en" ? name : (T[LANG]?.["month." + name] ?? name);
+  return `${shown}${year ? " " + year : ""}`;
+}
+
+const spanLabel = span => (span === "undated" ? monthLabel(span) : span);
+
+function periodLabel(period) {
+  const here = PERIODS.find(p => p.month === period);
+  return here ? monthLabel(here.month, here.year) : monthLabel(period);
+}
+
+const guideHref = () => (LANG === "en" ? "/guide" : "/guide?lang=" + LANG);
+
+function captureStatic() {
+  const en = { text: {}, html: {}, title: {}, placeholder: {} };
+  document.querySelectorAll("[data-t-html]").forEach(el => {
+    let html = el.innerHTML;
+    el.querySelectorAll("[data-t-slot]").forEach(slot => {
+      html = html.replace(slot.outerHTML, `{${slot.dataset.tSlot}}`);
+    });
+    en.html[el.dataset.tHtml] = html;
+  });
+  document.querySelectorAll("[data-t]").forEach(el => (en.text[el.dataset.t] = el.textContent));
+  document.querySelectorAll("[data-t-title]").forEach(el =>
+    (en.title[el.dataset.tTitle] = el.getAttribute("title")));
+  document.querySelectorAll("[data-t-placeholder]").forEach(el =>
+    (en.placeholder[el.dataset.tPlaceholder] = el.getAttribute("placeholder")));
+  return en;
+}
+const STATIC = captureStatic();
+
+function applyStatic() {
+  document.querySelectorAll("[data-t-html]").forEach(el => {
+    const key = el.dataset.tHtml;
+    if (STATIC.html[key] === undefined) return;
+    const slots = {};
+    el.querySelectorAll("[data-t-slot]").forEach(slot => (slots[slot.dataset.tSlot] = slot.outerHTML));
+    const html = t(key, STATIC.html[key], slots);
+    if (el.innerHTML !== html) el.innerHTML = html;
+  });
+  document.querySelectorAll("[data-t]").forEach(el => {
+    const key = el.dataset.t;
+    if (STATIC.text[key] === undefined) return;
+    const text = t(key, STATIC.text[key]);
+    if (el.textContent !== text) el.textContent = text;
+  });
+  for (const attr of ["title", "placeholder"]) {
+    const data = "data-t-" + attr;
+    document.querySelectorAll(`[${data}]`).forEach(el => {
+      const key = el.getAttribute(data);
+      if (STATIC[attr][key] === undefined) return;
+      const text = t(key, STATIC[attr][key]);
+      if (el.getAttribute(attr) !== text) el.setAttribute(attr, text);
+    });
+  }
+}
+
+function startLang() {
+  let kept = null;
+  try {
+    const found = /(?:^|;\s*)budget_lang=([^;]*)/.exec(document.cookie);
+    kept = found ? found[1] : null;
+  } catch (e) { }
+  if (LANGS.includes(kept)) return kept;
+  return LANGS.includes(CFG.lang) ? CFG.lang : "en";
+}
+
+function showLang(code) {
+  LANG = code;
+  document.documentElement.lang = code;
+  document.title = t("app.name", "Budget");
+  const choice = document.getElementById("lang");
+  if (choice) choice.value = code;
+  const guide = document.getElementById("guide");
+  if (guide) guide.setAttribute("href", guideHref());
+  applyStatic();
+}
+
+async function setLang(code, { household = true, redraw = true } = {}) {
+  if (!LANGS.includes(code)) return;
+  showLang(code);
+  try {
+    document.cookie = `budget_lang=${code}; Path=/; SameSite=Strict; Max-Age=157680000`;
+  } catch (e) { }
+  if (GEAR) {
+    GEAR.paint();
+    GEAR.namePeriod();
+    GEAR.disarm();
+    GEAR.quiet();
+  }
+  document.querySelectorAll(".mover").forEach(el => el.remove());
+  if (SCOPE.name) SCOPE.period = periodLabel(SCOPE.name);
+  fillPeriods();
+  if (!redraw) return;
+  if (household && CFG.local) {
+    try {
+      const r = await call({ action: "household", lang: code });
+      if (r && LANGS.includes(r.household)) HOUSEHOLD = r.household;
+      if (r && r.swapped) {
+        PERIODS = await call({ action: "periods" });
+        fillPeriods();
+      }
+    } catch (e) { }
+  }
+  const add = VIEW === "add" && document.getElementById("notes") ? {
+    notes: document.getElementById("notes").value,
+    target: document.getElementById("target").value,
+    replace: document.getElementById("replace").checked,
+    shots: document.getElementById("shots"),
+  } : null;
+  await render();
+  if (add && VIEW === "add" && document.getElementById("notes")) {
+    document.getElementById("notes").value = add.notes;
+    const target = document.getElementById("target");
+    if ([...target.options].some(o => o.value === add.target)) target.value = add.target;
+    document.getElementById("replace").checked = add.replace;
+    const fresh = document.getElementById("shots");
+    if (fresh && add.shots && add.shots !== fresh && add.shots.files && add.shots.files.length) {
+      fresh.replaceWith(add.shots);
+      showChosen();
+    }
+  }
+}
+
+function signOut() {
+  location.href = "/logout";
+}
+
+async function call(body) {
+  const res = await fetch("/api", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify(LANG === "en" ? body : Object.assign({ lang: LANG }, body)),
+  });
+  if (res.status === 401) { location.href = "/login"; return new Promise(() => {}); }
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}: ${await res.text()}`);
+  const reply = await res.json();
+  if (!reply.ok) {
+    const refused = new Error(reply.error);
+    if (reply.code) refused.code = reply.code;
+    throw refused;
+  }
+  return reply.result;
+}
+
+const FLOOR = 10;
+const ROW_H = 38, BAR_H = 24;
+
+function labelWidth(rows) {
+  const fs = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue("--fs-major")) || 16;
+  const ctx = (labelWidth._c ||= document.createElement("canvas").getContext("2d"));
+  ctx.font = `${fs}px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+  const widest = Math.max(...rows.map(m => ctx.measureText(m.name).width), 60);
+  return Math.ceil(widest) + 18;
+}
+
+const textRoom = s => {
+  const fs = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue("--fs-value")) || 12;
+  return s.length * fs * 0.58 + 13;
+};
+
+const minSegment = perUnit =>
+  Math.max(FLOOR * perUnit, textRoom("00.0"));
+
+function fitPerUnit(measured, usable) {
+  const longest = Math.max(...measured.map(r =>
+    r.m.limit == null ? Math.abs(r.m.value) : Math.max(Math.abs(r.m.value), r.m.limit)), 1);
+  let per = usable / longest;
+  for (let pass = 0; pass < 5; pass++) {
+    const widest = Math.max(...measured.map(r =>
+      barGeometry(r.m, r.shown, r.overShown, per).total));
+    if (widest <= usable + 0.5) break;
+    per *= usable / widest;
+  }
+  return per;
+}
+
+function barGeometry(major, shown, overShown, perUnit) {
+  const limit = major.limit;
+  const value = Math.abs(major.value);
+  const unlimited = limit == null;
+
+  const spanUnits = unlimited ? value : Math.max(value, limit);
+  const greenUnits = unlimited ? value : Math.min(value, limit);
+  const redUnits = unlimited ? 0 : Math.max(0, value - limit);
+  const yellowUnits = unlimited ? 0 : Math.max(0, limit - value);
+
+  const k = Math.max(1, minSegment(perUnit) / Math.max(spanUnits * perUnit, 0.01));
+  const scale = perUnit * k;
+
+  const seg = s => textRoom(s) * 1.25;
+  let green = greenUnits * scale;
+  if (greenUnits > 0) green = Math.max(green, seg(shown));
+  let red = redUnits * scale;
+  if (redUnits > 0) red = Math.max(red, seg(overShown));
+  const yellow = yellowUnits * scale;
+
+  return { green, yellow, red, total: green + yellow + red, unlimited };
+}
+
+function svgChart(majors, available) {
+  const rows = majors.filter(m => m.chart !== false).map(m => ({ ...m, name: barName(m) }));
+  const height = rows.length * ROW_H + 8;
+
+  const labelled = rows.map(m => ({
+    m,
+    shown: (m.income ? "+" : "") + Math.abs(m.value).toFixed(1),
+    overShown: m.limit != null && Math.abs(m.value) > m.limit
+      ? "-" + (Math.abs(m.value) - m.limit).toFixed(1) : "",
+  }));
+
+  const LABEL_W = labelWidth(rows);
+  const usable = Math.max(240, available - LABEL_W - 24);
+  const per = fitPerUnit(labelled, usable);
+  const measured = labelled.map(r => ({ ...r, g: barGeometry(r.m, r.shown, r.overShown, per) }));
+  const widest = Math.max(...measured.map(r => r.g.total));
+
+  const parts = measured.map(({ m, shown, overShown, g }, i) => {
+    const y = i * ROW_H + 4;
+    const x = LABEL_W;
+    const baseline = y + BAR_H - 7;
+    if (m.value === 0) {
+      return `<text class="bar-name" x="${LABEL_W - 10}" y="${baseline}" text-anchor="end">${esc(m.name)}</text>
+              <text class="bar-value" x="${x}" y="${baseline}" fill="var(--dim)">—</text>`;
+    }
+    const colour = m.saved ? "var(--saved)"
+      : m.overspent ? "var(--overspent)"
+      : m.income ? "var(--income)" : (g.unlimited ? "var(--blue)" : "var(--green)");
+
+    let out = `<text class="bar-name" x="${LABEL_W - 10}" y="${baseline}" text-anchor="end">${esc(m.name)}</text>`;
+
+    if (!g.unlimited) {
+      out += `<rect x="${x}" y="${y}" width="${g.total}" height="${BAR_H}" rx="3"
+                fill="var(--${g.red > 0 ? "red" : "yellow"})"/>`;
+    }
+    out += `<rect x="${x}" y="${y}" width="${g.green}" height="${BAR_H}" rx="3" fill="${colour}"/>`;
+
+    out += `<text class="bar-value" x="${x + g.green - 7}" y="${baseline}"
+              text-anchor="end" fill="#fff">${shown}</text>`;
+    if (g.red > 0) {
+      out += `<text class="bar-value" x="${x + g.total - 7}" y="${baseline}"
+                text-anchor="end" fill="#fff">${overShown}</text>`;
+    }
+    return out;
+  }).join("");
+
+  const w = Math.ceil(Math.min(available, LABEL_W + widest + 24));
+  return `<svg width="${w}" height="${height}" viewBox="0 0 ${w} ${height}" role="img">${parts}</svg>`;
+}
+
+const barName = m => m.saved ? t("reading.saved", "Totally saved")
+  : m.overspent ? t("reading.overspent", "Totally overspent") : m.name;
+
+const SWATCHES = [
+  ["--green",  "Spent, within limit", "gear.colour.green"],
+  ["--yellow", "Still available", "gear.colour.yellow"],
+  ["--red",    "Over the limit", "gear.colour.red"],
+  ["--blue",   "No limit set", "gear.colour.blue"],
+  ["--income", "Income", "gear.colour.income"],
+  ["--saved",  "Totally saved", "reading.saved"],
+  ["--overspent", "Totally overspent", "reading.overspent"],
+  ["--adjusted", "Highlight on a figure you set", "gear.colour.adjusted"],
+];
+const SIZES = [
+  ["--fs-major", "Major group names", 20, 40, "gear.size.major"],
+  ["--fs-value", "Figures in the bars", 10, 30, "gear.size.value"],
+  ["--fs-minor", "Minor groups", 15, 35, "gear.size.minor"],
+  ["--fs-left", "Left line", 15, 35, "gear.size.left"],
+  ["--fs-total", "Totals", 20, 40, "gear.size.total"],
+  ["--fs-limit", "Limits box", 15, 35, "gear.size.limit"],
+];
+const DEFAULTS = {
+  "--green": "#3f9d5a", "--yellow": "#e5bc3c", "--red": "#c8482f",
+  "--blue": "#4a8fc7", "--income": "#e5bc3c",
+  "--saved": "#ffd84d", "--adjusted": "#d8b4fe", "--overspent": "#ff4d3d",
+  "--fs-major": "25px", "--fs-value": "18px", "--fs-minor": "22px",
+  "--fs-total": "26px", "--fs-limit": "19px", "--fs-left": "22px",
+};
+
+function applyOptions(saved) {
+  for (const [k, v] of Object.entries({ ...DEFAULTS, ...saved })) {
+    document.documentElement.style.setProperty(k, v);
+  }
+}
+
+function initOptions(onChange) {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem("options")) || {}; } catch { saved = {}; }
+  applyOptions(saved);
+
+  const value = k => saved[k] || DEFAULTS[k];
+
+  const paint = () => {
+    applyOptions(saved);
+    document.getElementById("swatches").innerHTML =
+      SWATCHES.map(([key, label, word]) =>
+        `<label><input type="color" data-key="${key}" value="${value(key)}"> ${t(word, label)}</label>`
+      ).join("") +
+      `<h2 style="margin-top:14px">${t("gear.sizes", "Text sizes")}</h2>` +
+      SIZES.map(([key, label, min, max, word]) =>
+        `<label>${t(word, label)}
+           <input type="range" data-key="${key}" data-unit="px" min="${min}" max="${max}"
+                  step="0.5" value="${parseFloat(value(key))}">
+           <span class="shown" data-for="${key}">${parseFloat(value(key))}px</span>
+         </label>`
+      ).join("");
+
+    document.querySelectorAll("#swatches input").forEach(input => {
+      input.oninput = () => {
+        const key = input.dataset.key;
+        saved[key] = input.dataset.unit ? input.value + input.dataset.unit : input.value;
+        localStorage.setItem("options", JSON.stringify(saved));
+        applyOptions(saved);
+        const shown = document.querySelector(`.shown[data-for="${key}"]`);
+        if (shown) shown.textContent = saved[key];
+        if (key === "--fs-value" || key === "--fs-major") onChange();
+      };
+    });
+  };
+  paint();
+
+  document.getElementById("reset-colours").onclick = () => {
+    saved = {};
+    localStorage.removeItem("options");
+    paint();
+    onChange();
+  };
+
+  const quiet = wireBackup(() => saved, next => {
+    saved = next;
+    if (Object.keys(saved).length) localStorage.setItem("options", JSON.stringify(saved));
+    else localStorage.removeItem("options");
+    paint();
+  }, onChange);
+
+  const language = document.getElementById("lang");
+  language.value = LANG;
+  language.onchange = () => setLang(language.value);
+
+  document.getElementById("gear").onclick = () =>
+    document.getElementById("settings").classList.toggle("open");
+  document.getElementById("open-security").onclick = () =>
+    (location.href = "/security");
+  document.getElementById("open-words").onclick = ev =>
+    configMenu(ev.currentTarget, "words");
+
+  const wipeBtn = document.getElementById("do-wipe");
+  const wipeSaid = document.getElementById("wipe-said");
+  const disarm = () => {
+    wipeBtn.hidden = false;
+    wipeSaid.className = "muted";
+    wipeSaid.textContent = "";
+  };
+  document.querySelectorAll("input[name=wipe]").forEach(r => {
+    r.onchange = () => { wipeBtn.disabled = false; disarm(); };
+  });
+  const namePeriod = () => {
+    const label = periodLabel(document.getElementById("period").value);
+    ["wipe-month", "wipe-onward"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && label) el.textContent = label;
+    });
+  };
+  document.getElementById("period").addEventListener("change", namePeriod);
+  document.getElementById("gear").addEventListener("click", () => { namePeriod(); disarm(); });
+  wipeBtn.onclick = () => {
+    const choice = document.querySelector("input[name=wipe]:checked");
+    if (!choice) return;
+    wipeBtn.hidden = true;
+    wipeSaid.className = "muted";
+    wipeSaid.innerHTML = `${t("gear.wipe.sure", "This cannot be undone.")}
+      <button id="wipe-yes">${t("gear.wipe.yes", "Yes, delete it")}</button>
+      <button id="wipe-no">${t("gear.wipe.no", "No, keep everything")}</button>`;
+    document.getElementById("wipe-no").onclick = disarm;
+    document.getElementById("wipe-yes").onclick = () => wipe(choice);
+  };
+
+  const wipe = async (choice) => {
+    wipeSaid.innerHTML = "";
+    wipeSaid.textContent = t("gear.wipe.running", "Wiping…");
+    try {
+      const period = document.getElementById("period").value;
+      const body = { action: "reset", scope: choice.value, confirm: "RESET" };
+      if (choice.value !== "all") Object.assign(body, unlocked(period, { period }));
+      const r = await call(body);
+      disarm();
+      wipeSaid.className = "ok";
+      const NAMES = {
+        months: ["gear.wiped.months", "{n} month{s}"],
+        answers: ["gear.wiped.answers", "{n} answer{s}"],
+        group_edits: ["gear.wiped.group_edits", "{n} group edit{s}"],
+        scoped_edits: ["gear.wiped.scoped_edits", "{n} scoped edit{s}"],
+      };
+      const gone = Object.entries(r.wiped)
+        .filter(([, v]) => v > 0)
+        .map(([k, v]) => NAMES[k]
+          ? t(NAMES[k][0], NAMES[k][1], { n: v, s: v === 1 ? "" : "s" })
+          : `${v} ${k}${v === 1 ? "" : "s"}`);
+      const months = r.months && r.months.length ? ` (${r.months.join(", ")})` : "";
+      wipeSaid.textContent = gone.length
+        ? t("gear.wipe.done", "Wiped {list}{months}.", { list: gone.join(", "), months })
+        : t("gear.wipe.nothing", "Nothing to wipe{months}.", { months });
+      choice.checked = false;
+      PERIODS = await call({ action: "periods" });
+      fillPeriods();
+      render();
+    } catch (e) {
+      disarm();
+      wipeSaid.className = "err";
+      wipeSaid.textContent = e.message || String(e);
+    } finally {
+      wipeBtn.disabled = false;
+      wipeBtn.hidden = false;
+    }
+  };
+
+  document.getElementById("export").onclick = ev => exportPopup(ev.currentTarget);
+
+  GEAR = { paint, namePeriod, disarm, quiet };
+}
+
+const BACKUP_KIND = "budget-backup";
+
+function wireBackup(readOptions, writeOptions, onChange) {
+  const said = document.getElementById("restore-said");
+  const file = document.getElementById("restore-file");
+  const pick = document.getElementById("pick-restore");
+  const grab = document.getElementById("do-backup");
+
+  const quiet = (text) => {
+    said.className = "muted";
+    said.style.minHeight = "";
+    said.textContent = text || "";
+  };
+
+  grab.onclick = async () => {
+    quiet(t("backup.collecting", "Collecting…"));
+    grab.disabled = true;
+    try {
+      const server = await call({ action: "backup" });
+      server.page = { options: readOptions() };
+      server.lang = LANG;
+      const day = (server.saved || "").slice(0, 10) || "today";
+      download(`budget-backup-${day}.json`, JSON.stringify(server, null, 1),
+               "application/json");
+      said.className = "ok";
+      said.textContent = t("backup.saved",
+        "Saved {months} month(s) and {answers} answer(s), with your colours and sizes.",
+        { months: server.months, answers: server.answers });
+    } catch (e) {
+      said.className = "err";
+      said.textContent = e.message || String(e);
+    } finally {
+      grab.disabled = false;
+    }
+  };
+
+  pick.onclick = () => { file.value = ""; file.click(); };
+
+  file.onchange = async () => {
+    const chosen = file.files[0];
+    if (!chosen) return;
+    let backup;
+    try {
+      backup = JSON.parse(await chosen.text());
+    } catch {
+      said.className = "err";
+      said.textContent = t("restore.not_json", "{file} is not readable as JSON.",
+                           { file: chosen.name });
+      return;
+    }
+    if (!backup || backup.kind !== BACKUP_KIND) {
+      said.className = "err";
+      said.textContent = t("restore.not_backup", "{file} is not a budget backup.",
+                           { file: chosen.name });
+      return;
+    }
+    ask(chosen.name, backup);
+  };
+
+  function ask(name, backup) {
+    const when = (backup.saved || "").slice(0, 10);
+    said.className = "muted asking";
+    said.innerHTML = `<b class="file">${esc(name)}</b>
+      ${th("restore.holds", "{months} month(s), {answers} answer(s){saved}.", {
+        months: backup.months ?? "?", answers: backup.answers ?? "?",
+        saved: when ? t("restore.saved_on", ", saved {date}", { date: when }) : "",
+      })}
+      ${th("restore.sure", `This replaces <b>everything</b> stored - every month, every answer, the
+      groups and limits. Are you sure?`)}
+      <button data-go="apply">${t("common.apply", "Apply")}</button>
+      <button data-go="cancel">${t("common.cancel", "Cancel")}</button>`;
+    said.querySelector("[data-go=cancel]").onclick = () => quiet();
+    said.querySelector("[data-go=apply]").onclick = () => confirmFinally(backup);
+    said.style.minHeight = said.offsetHeight + "px";
+  }
+
+  function confirmFinally(backup) {
+    said.className = "muted asking";
+    said.innerHTML = `${t("restore.last", "Nothing brings back what is stored now.")}
+      <button data-go="cancel">${t("common.cancel", "Cancel")}</button>
+      <button class="final" data-go="yes" disabled>${t("restore.final", "Final irreversible Yes")}</button>`;
+    const yes = said.querySelector("[data-go=yes]");
+    said.querySelector("[data-go=cancel]").onclick = () => quiet();
+    yes.onclick = () => go(backup);
+    setTimeout(() => { yes.disabled = false; }, 700);
+  }
+
+  async function go(backup) {
+    quiet(t("restore.running", "Restoring…"));
+    let r;
+    try {
+      r = await call({ action: "restore", backup, confirm: "RESTORE" });
+    } catch (e) {
+      said.className = "err";
+      said.textContent = e.message || String(e);
+      return;
+    }
+    const options = (backup.page && backup.page.options) || {};
+    writeOptions(cleanOptions(options));
+    if (LANGS.includes(backup.lang) && backup.lang !== LANG) {
+      setLang(backup.lang, { household: false, redraw: false });
+    }
+    if (r.rules === "same" && typeof backup.rules === "string") {
+      HOUSEHOLD = /^[ \t]*\[notes\]/m.test(backup.rules) ? "ru" : "en";
+    }
+    const done = t("restore.done", "Restored {months} month(s) and {answers} answer(s).",
+                   { months: r.restored.months, answers: r.restored.answers })
+      + (r.rules === "different"
+        ? " " + t("restore.other_rules", "The file was made with different rules from this app's, so its months read here by this app's own rules.")
+        : "");
+    try {
+      PERIODS = await call({ action: "periods" });
+      fillPeriods();
+      UNLOCKED.clear();
+      COMPARE_PICK = null;
+      said.className = "ok";
+      said.textContent = done;
+      onChange();
+    } catch (e) {
+      said.className = "err";
+      said.textContent = t("restore.reload_failed",
+        "{done} Reloading the page failed - refresh to see it: {error}",
+        { done, error: e.message || String(e) });
+    }
+  }
+
+  function cleanOptions(options) {
+    if (!options || typeof options !== "object" || Array.isArray(options)) return {};
+    const allowed = new Set([...SWATCHES, ...SIZES].map(o => o[0]));
+    const out = {};
+    for (const [key, value] of Object.entries(options)) {
+      if (!allowed.has(key) || typeof value !== "string") continue;
+      if (/^#[0-9a-fA-F]{6}$/.test(value) || /^\d{1,3}(\.\d)?px$/.test(value)) {
+        out[key] = value;
+      }
+    }
+    return out;
+  }
+
+  return quiet;
+}
+
+function download(name, body, type) {
+  const bom = type.startsWith("text/plain") ? String.fromCharCode(0xFEFF) : "";
+  const url = URL.createObjectURL(new Blob([bom + body], { type }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function comparePrintPopup(anchor) {
+  document.querySelectorAll(".mover").forEach(el => el.remove());
+  if (!LAST) return;
+  const pop = document.createElement("div");
+  pop.className = "mover";
+  pop.innerHTML = `
+    <p class="ask">${t("print.compare.what", `{n} month(s), laid out for A4. More than
+      about five to a page and it continues on the next - each one repeating the
+      group names, so every page can be read on its own.`, { n: LAST.months.length })}</p>
+    <button data-fmt="rtf">${t("print.rtf", "Word (.rtf)")}</button>
+    <button data-fmt="txt">${t("print.txt", "Text (.txt)")}</button>
+    <button data-cancel="1">${t("common.cancel", "Cancel")}</button>
+    <span class="muted"></span>`;
+  document.body.appendChild(pop);
+  placePopup(pop, anchor);
+
+  pop.querySelectorAll("button").forEach(btn => {
+    btn.onclick = async () => {
+      if (btn.dataset.cancel) return pop.remove();
+      const said = pop.querySelector(".muted");
+      said.className = "muted";
+      said.textContent = t("print.building", "Building…");
+      pop.querySelectorAll("button").forEach(b => (b.disabled = true));
+      try {
+        const r = await call({
+          action: "export", format: btn.dataset.fmt,
+          periods: LAST.months, average: LAST.average,
+          year: new Date().getFullYear(),
+        });
+        download(r.name, r.body,
+          r.format === "rtf" ? "application/rtf" : "text/plain;charset=utf-8");
+        pop.remove();
+      } catch (e) {
+        said.className = "err";
+        said.textContent = e.message || String(e);
+        pop.querySelectorAll("button").forEach(b => (b.disabled = false));
+      }
+    };
+  });
+}
+
+function placePopup(pop, anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const room = Math.min(348, innerWidth - 8);
+  pop.style.top = `${rect.bottom + scrollY + 6}px`;
+  pop.style.left = `${Math.max(8, Math.min(rect.left + scrollX, scrollX + innerWidth - room))}px`;
+  const onKey = e => { if (e.key === "Escape") close(); };
+  const onDoc = e => {
+    const on = document.activeElement;
+    if (on && on.tagName === "SELECT" && pop.contains(on)) return;
+    if (!pop.contains(e.target) && e.target !== anchor) close();
+  };
+  function close() {
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("pointerdown", onDoc, true);
+    pop.remove();
+  }
+  document.addEventListener("keydown", onKey);
+  document.addEventListener("pointerdown", onDoc, true);
+  return close;
+}
+
+function exportPopup(anchor) {
+  document.querySelectorAll(".mover").forEach(el => el.remove());
+  const here = PERIODS.find(p => p.month === document.getElementById("period").value);
+  const years = [...new Set(PERIODS.map(p => p.year).filter(Boolean))].sort();
+  const start = here && here.year ? here.year : years[years.length - 1];
+
+  const pop = document.createElement("div");
+  pop.className = "mover";
+  pop.innerHTML = `
+    <p class="ask">${t("print.month.what", `Two A4 pages per month: majors and totals, then minor groups
+      and the Left line. Answered figures print underlined.`)}</p>
+    ${years.length ? `<label class="pr">${t("print.year", "Year")}
+      <select id="pr-year">${years.map(y =>
+        `<option value="${y}"${y === start ? " selected" : ""}>${y}</option>`).join("")}
+      </select></label>` : ""}
+    <label class="pr">${t("print.what", "Print")} <select id="pr-what"></select></label>
+    <button data-fmt="rtf">${t("print.rtf", "Word (.rtf)")}</button>
+    <button data-fmt="txt">${t("print.txt", "Text (.txt)")}</button>
+    <button data-cancel="1">${t("common.cancel", "Cancel")}</button>
+    <span class="muted"></span>`;
+  document.body.appendChild(pop);
+
+  const yearSel = pop.querySelector("#pr-year");
+  const whatSel = pop.querySelector("#pr-what");
+  const chosenYear = () => (yearSel ? Number(yearSel.value) : years[0]);
+  const fillWhat = (prefer) => {
+    const y = chosenYear();
+    const mine = y ? PERIODS.filter(p => p.year === y) : PERIODS;
+    whatSel.innerHTML =
+      (y ? `<option value="">${t("print.all_year", "All {year} — every month", { year: y })}</option>` : "") +
+      mine.map(p => `<option value="${esc(p.month)}">${t("print.month", "{month} ({n} days)", {
+        month: esc(monthLabel(p.month, p.year)), n: p.days })}</option>`).join("") +
+      (y ? PERIODS.filter(p => !p.year).map(p =>
+        `<option value="${esc(p.month)}">${t("print.no_year", "{month} — no year recorded",
+          { month: esc(monthLabel(p.month)) })}</option>`).join("") : "");
+    if (prefer && [...whatSel.options].some(o => o.value === prefer)) whatSel.value = prefer;
+  };
+  fillWhat(here && here.month);
+  if (yearSel) yearSel.onchange = () => fillWhat(null);
+
+  const rect = anchor.getBoundingClientRect();
+  const room = Math.min(348, innerWidth - 8);
+  pop.style.top = `${rect.bottom + scrollY + 6}px`;
+  pop.style.left = `${Math.max(8, Math.min(rect.left + scrollX, scrollX + innerWidth - room))}px`;
+
+  const onKey = e => { if (e.key === "Escape") close(); };
+  const onDoc = e => {
+    const on = document.activeElement;
+    if (on && on.tagName === "SELECT" && pop.contains(on)) return;
+    if (!pop.contains(e.target) && e.target !== anchor) close();
+  };
+  function close() {
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("pointerdown", onDoc, true);
+    pop.remove();
+  }
+  document.addEventListener("keydown", onKey);
+  document.addEventListener("pointerdown", onDoc, true);
+
+  if (!years.length) {
+    pop.querySelector(".muted").textContent = t("print.need_year",
+      "Whole-year printing needs the year recorded - re-import a month to set it.");
+  }
+
+  pop.querySelectorAll("button").forEach(btn => {
+    btn.onclick = async () => {
+      if (btn.dataset.cancel) return close();
+      const said = pop.querySelector(".muted");
+      said.className = "muted";
+      said.textContent = t("print.building", "Building…");
+      pop.querySelectorAll("button").forEach(b => (b.disabled = true));
+      const body = { action: "export", format: btn.dataset.fmt,
+                     year: chosenYear() || new Date().getFullYear() };
+      if (whatSel.value) body.period = whatSel.value;
+      try {
+        const r = await call(body);
+        download(r.name, r.body,
+          r.format === "rtf" ? "application/rtf" : "text/plain;charset=utf-8");
+        close();
+      } catch (e) {
+        said.className = "err";
+        said.textContent = e.message || String(e);
+        pop.querySelectorAll("button").forEach(b => (b.disabled = false));
+      }
+    };
+  });
+}
+
+const app = () => document.getElementById("app");
+function leftLine(src, editable, typed = false) {
+  if (!src.cells) return esc(src.text || src.raw || "");
+  const label = editable
+    ? `<b class="pick" id="edit-left" title="${esc(t("left.edit.title", "rename this line, or add and remove its figures"))}">${t("left.word", "Left")}</b>`
+    : t("left.word", "Left");
+  const figure = c => (typed ? leftFigure(c) : esc(c.figure));
+  return label + ": " + src.cells.map(c =>
+    c.place === "after"
+      ? `${figure(c)}<span class="lbl">${esc(c.join + c.label)}</span>`
+      : (c.label ? `<span class="lbl">${esc(c.label + c.join)}</span>` : "") + figure(c)
+  ).join(", ");
+}
+
+function leftFigure(c) {
+  if (!c.id) return esc(c.figure);
+  const slot = esc(c.id);
+  if (!c.set && (c.value === null || c.value === undefined)) {
+    return `<button class="lval" data-slot="${slot}"
+      title="${esc(t("left.value.title", "type this figure yourself"))}">${t("left.value", "value…")}</button>`;
+  }
+  const title = c.set
+    ? t("left.value.set", "you set this; the notes make it {n} - click to change it",
+        { n: c.noted })
+    : t("left.value.edit", "click to type this figure yourself");
+  return `<span class="lfig${c.set ? " setby" : ""}" data-slot="${slot}"
+    data-value="${c.value === null || c.value === undefined ? "" : esc(c.value)}"
+    title="${esc(title)}">${esc(c.figure)}</span>`;
+}
+
+function leftNote(left) {
+  if (left.computed) {
+    return t("month.recounted", `(recounted: {date}'s Left + {n}
+          newer day{s})`, { date: esc(left.date), n: left.days_after,
+                            s: left.days_after === 1 ? "" : "s" });
+  }
+  if (left.counted_on) {
+    return left.counted_from === "start"
+      ? t("month.counted_start", "(counted on from your starting figures)")
+      : t("month.counted_before", "(counted on from the month before)");
+  }
+  if (left.blank) return t("month.no_left_line", "(these notes carry no closing line)");
+  return "";
+}
+
+function leftValueInput(el, period) {
+  const slot = el.dataset.slot;
+  const box = document.createElement("span");
+  box.innerHTML = `<input type="text" size="9" inputmode="decimal"
+      placeholder="${esc(t("left.value.prompt", "a figure"))}">
+    <button data-go="1">${t("common.ok", "OK")}</button>
+    ${el.classList.contains("setby")
+      ? `<button data-back="1">${t("left.value.back", "Back to the notes' figure")}</button>` : ""}`;
+  el.replaceWith(box);
+  const input = box.querySelector("input");
+  input.value = el.dataset.value || "";
+  input.focus();
+  const said = app().querySelector("#left-said");
+  let sent = false;
+  const send = async value => {
+    if (sent) return;
+    sent = true;
+    const body = { action: "left_value", slot, value };
+    if (period) body.period = period;
+    try {
+      await call(period ? unlocked(period, body) : body);
+      render();
+    } catch (e) {
+      sent = false;
+      if (said) {
+        said.className = "said err";
+        said.textContent = period ? closedMsg(e, period) : (e.message || String(e));
+      }
+    }
+  };
+  const go = () => {
+    const typed = input.value.trim().replace(/\s+/g, "").replace(",", ".");
+    const value = Number(typed);
+    if (!typed || !Number.isFinite(value)) {
+      if (said) {
+        said.className = "said err";
+        said.textContent = t("left.value.nan", "Type a number.");
+      }
+      return;
+    }
+    send(value);
+  };
+  box.querySelector("[data-go]").onclick = go;
+  const back = box.querySelector("[data-back]");
+  if (back) back.onclick = () => send(null);
+  input.onkeydown = e => {
+    if (e.key === "Enter") { e.preventDefault(); go(); }
+  };
+}
+
+const esc = s => String(s).replace(/[<>&"]/g,
+  c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+
+function wireEditors() {
+  for (const [id, target] of [["edit-majors", "majors"], ["edit-limits", "limits"],
+                              ["edit-minors", "minors"], ["edit-left", "left"]]) {
+    const el = app().querySelector("#" + id);
+    if (!el) continue;
+    el.onclick = () => configMenu(el, target);
+  }
+}
+
+async function viewMonth(period) {
+  drawMonth(await call({ action: "totals", period, year: new Date().getFullYear() }), period);
+}
+
+async function viewEmpty() {
+  drawMonth(await call({ action: "empty" }), null);
+  app().insertAdjacentHTML("afterbegin", `
+    <div class="banner">
+      <b>${t("empty.title", "Nothing has been added yet — this is how your month will look.")}</b>
+      ${t("empty.text", `Every group is in its place, empty. Rename, add or remove them with the
+      {dots} buttons, then paste your first month with {add}. {guide} explains both, and
+      everything else on this page.`, {
+        add: `<b class="inline">${t("nav.add", "Add notes")}</b>`,
+        dots: `<span class="gear" style="padding:0 6px">⋯</span>`,
+        guide: `<a href="${guideHref()}" target="_blank" rel="noopener">${t("empty.guide", "The guide")}</a>`,
+      })}
+    </div>`);
+}
+
+function markQuestions(n) {
+  const btn = document.querySelector('nav button[data-view="questions"]');
+  if (!btn) return;
+  let mark = btn.querySelector(".qmark");
+  if (n > 0) {
+    if (!mark) {
+      mark = document.createElement("span");
+      mark.className = "qmark";
+      mark.setAttribute("aria-hidden", "true");
+      mark.textContent = "!";
+      btn.appendChild(mark);
+    }
+    btn.title = t("month.unanswered", "{n} unanswered question{s}.",
+                  { n, s: n === 1 ? "" : "s" });
+  } else {
+    if (mark) mark.remove();
+    btn.removeAttribute("title");
+  }
+}
+
+async function refreshMark(period) {
+  if (!period || !PERIODS.length) return markQuestions(0);
+  try { markQuestions((await call({ action: "questions", period })).length); }
+  catch (e) { markQuestions(0); }
+}
+
+function drawMonth(d, period) {
+  markQuestions(period ? d.questions : 0);
+
+  const limits = d.limits.map(l =>
+    `<div><span>${esc(l.label)}</span><span>${l.value}</span></div>`).join("");
+
+  const counted = d.appended.filter(a => a.counted !== false);
+  const tail = d.appended.length
+    ? `<p><b class="pick" id="pick-appended"
+           title="${esc(t("month.pick.title", "choose which occasional groups this Total counts"))}">${t("month.total", "Total")}</b>:
+       ${d.totals.necessary.toFixed(1)}` +
+      (counted.length
+        ? " + " + counted.map(a => a.adjusted
+            ? `<span class="setby" title="${esc(t("month.setby.title", "you set this; the notes make it {n}", { n: a.actual.toFixed(1) }))}"
+               >${esc(a.name)} ${a.value.toFixed(1)}</span>`
+            : `${esc(a.name)} ${a.value.toFixed(1)}`).join(" + ")
+        : "") +
+      ` : <b>${d.totals.grand.toFixed(1)}</b></p>`
+    : "";
+
+  const amounts = (list, marks = []) => list.length
+    ? list.map((v, i) => {
+        const shown = v < 0 ? `+${-v}` : String(v);
+        const src = marks[i];
+        if (!src) return shown;
+        const kinds = new Set(src.map(m => m.kind));
+        const cls = kinds.has("answered") ? "ansd" : kinds.has("moved") ? "movd" : "plcd";
+        const title = kinds.has("answered")
+          ? t("month.figure.answered", "booked by your answer — click to move it")
+          : kinds.has("moved") ? t("month.figure.moved", "moved by you — click to move it again, or put it back")
+          : t("month.figure.placed", "click to move this to another group");
+        return `<span class="${cls}" data-src="${encodeURIComponent(JSON.stringify(src))}"
+               title="${esc(title)}">${shown}</span>`;
+      }).join(", ")
+    : "—";
+
+  const row = (name, data, indent = false) =>
+    `<div class="name${indent ? " sub-name" : ""}">${esc(name)}:</div>
+     <div class="vals">${amounts(data.amounts, data.marks || [])}</div>
+     <div class="sum">: ${data.total}</div>`;
+
+  const minors = d.minors.map(m => m.subgroups
+    ? `<div class="name">${esc(m.name)}:</div><div class="vals"></div>
+       <div class="sum">: ${m.total}</div>` +
+      m.subgroups.map(s => row(s.name, s, true)).join("")
+    : row(m.name, m)
+  ).join("");
+
+  const held = (d.held || []).length
+    ? `<div class="held"><p class="muted">${t("month.held", `Moved to another month - not counted
+        in this one; counted there once its notes are added:`)}</p>` +
+      d.held.map(h => `<p>${h.date ? `<span class="muted">${esc(h.date)}</span> ` : ""}${
+        esc(h.raw)} → <b>${h.month ? esc(monthLabel(h.month))
+                                    : t("month.held.before", "the month before")}</b></p>`).join("") +
+      "</div>"
+    : "";
+
+  const made = PERIODS.find(p => p.month === period);
+  const moved = made && made.moved
+    ? `<p class="muted moved">${t("month.moved", `Only lines written in other months that
+        belong to this one. Add its own notes - as a new month, or with Add to - and they
+        join them.`)}</p>`
+    : "";
+
+  app().innerHTML = moved + `
+    <div class="layout">
+      <div class="chart-col">
+        <div class="colhead">
+          <button id="edit-majors" class="gear"
+            title="${esc(t("edit.majors.title", "Add, rename or remove major groups"))}">⋯</button>
+          <span>${t("month.majors", "major groups")}</span>
+        </div>
+        <div class="chart"></div>
+      </div>
+      <div class="limits">
+        <h2><button id="edit-limits" class="gear"
+          title="${esc(t("edit.limits.title", "Add a limit, change its value, or point it at another group"))}">⋯</button>
+          <span>${t("limits.title", "Limits")}</span></h2>${limits}
+      </div>
+    </div>
+    <hr>
+    <div class="totals">
+      <p><b>${t("month.total_colon", "Total:")}</b> ${d.totals.necessary.toFixed(1)}</p>
+      ${tail}
+    </div>
+    <hr>
+    <div class="minorhead">
+      <button id="edit-minors" class="gear"
+        title="${esc(t("edit.minors.title", "Add, rename or remove a minor group, or move it under another major"))}">⋯</button>
+      <span>${t("month.minors", "minor groups")}</span>
+    </div>
+    <div class="minors">${minors}</div>
+    ${held}
+    ${d.left ? `<p class="left">${leftLine(d.left.computed || d.left, true, true)}${
+        leftNote(d.left) ? ` <span class="muted">${leftNote(d.left)}</span>` : ""}
+        <span id="left-said" class="said"></span></p>`
+      : `<p class="left"><b class="pick" id="edit-left"
+           title="${esc(t("left.edit.title", "rename this line, or add and remove its figures"))}">${t("left.word", "Left")}</b>:
+         <span class="muted">${t("month.no_left", `these notes carry no closing line — click to set
+         one up`)}</span></p>`}
+    ${d.questions ? `<p class="muted">${t("month.unanswered", "{n} unanswered question{s}.",
+        { n: d.questions, s: d.questions === 1 ? "" : "s" })}</p>` : ""}
+  `;
+
+  const paint = () => {
+    const box = app().querySelector(".chart");
+    if (box) box.innerHTML = svgChart(d.majors, box.clientWidth || 700);
+  };
+  paint();
+  CHART_REPAINT = paint;
+
+  app().querySelectorAll(".left [data-slot]").forEach(el => {
+    el.onclick = () => leftValueInput(el, period);
+  });
+
+  app().querySelectorAll(".ansd, .movd, .plcd").forEach(el => {
+    el.onclick = () =>
+      moverPopup(el, JSON.parse(decodeURIComponent(el.dataset.src)), period);
+  });
+
+  if (d.closed || UNLOCKED.has(period)) {
+    const open = UNLOCKED.has(period);
+    const layout = app().querySelector(".layout");
+    if (layout) {
+      layout.insertAdjacentHTML("beforebegin", `
+      <div class="lockbar${open ? " open" : ""}">
+        <span>${open
+          ? th("lock.unlocked", `<b>{period} is unlocked.</b> Changes you make now are saved
+             for good - it is the unlock that lapses when you reload.`, { period: monthLabel(period) })
+          : th("lock.closed", `<b>{period} is closed.</b> Months close three months after
+             they end, so an old figure cannot be changed by a stray click.`, { period: monthLabel(period) })}</span>
+        <button id="lock-toggle">${open ? t("lock.again", "Lock again") : t("lock.unlock", "Unlock this month")}</button>
+        <span id="lock-said" class="muted"></span>
+      </div>`);
+      const toggle = document.getElementById("lock-toggle");
+      const said = document.getElementById("lock-said");
+      toggle.onclick = () => {
+        if (open) { UNLOCKED.delete(period); return render(); }
+        toggle.hidden = true;
+        said.className = "muted";
+        said.innerHTML = `${t("lock.sure", `This month may already have been printed - correcting
+          it changes those figures.`)}
+          <button id="lock-yes">${t("lock.yes", "Yes, unlock it")}</button>
+          <button id="lock-no">${t("lock.no", "No, leave it closed")}</button>`;
+        document.getElementById("lock-no").onclick = () => {
+          toggle.hidden = false;
+          said.className = "muted";
+          said.textContent = "";
+        };
+        document.getElementById("lock-yes").onclick = () => {
+          UNLOCKED.add(period);
+          render();
+        };
+      };
+    }
+  }
+
+  const pick = app().querySelector("#pick-appended");
+  if (pick) pick.onclick = () => appendedPicker(pick, d.appended, period);
+
+  wireEditors();
+}
+
+function editorCard(anchor, wide) {
+  document.querySelectorAll(".mover").forEach(el => el.remove());
+  const pop = document.createElement("div");
+  pop.className = wide ? "mover wide" : "mover";
+  document.body.appendChild(pop);
+  const rect = anchor.getBoundingClientRect();
+  const room = Math.min(wide ? 528 : 348, innerWidth - 8);
+  pop.style.top = `${rect.bottom + scrollY + 6}px`;
+  pop.style.left = `${Math.max(8, Math.min(rect.left + scrollX - (wide ? 200 : 0), scrollX + innerWidth - room))}px`;
+  const onKey = e => { if (e.key === "Escape" && !pop.dataset.busy) close(); };
+  const onDoc = e => {
+    if (!pop.dataset.busy && !pop.contains(e.target) && e.target !== anchor) close();
+  };
+  function close() {
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("pointerdown", onDoc, true);
+    const dirty = pop.dataset.dirty;
+    pop.remove();
+    if (dirty) render();
+  }
+  document.addEventListener("keydown", onKey);
+  document.addEventListener("pointerdown", onDoc, true);
+  return { pop, close };
+}
+
+async function freshAppended(period) {
+  const d = await call({ action: "totals", period, year: new Date().getFullYear() });
+  return d.appended;
+}
+
+function appendedPicker(anchor, appended, period) {
+  const { pop, close } = editorCard(anchor, false);
+  pop.classList.add("picker");
+  pop.innerHTML = `
+    <p class="ask">${t("picker.head", "Counted in the second Total:")}</p>
+    ${appended.map(a => `
+      <label><input type="checkbox" data-id="${esc(a.id || a.name)}"
+        ${a.counted === false ? "" : "checked"}>
+        ${esc(a.name)}<span class="val${a.adjusted ? " setby" : ""}"
+          data-id="${esc(a.id || a.name)}" data-actual="${a.actual ?? a.value}"
+          title="${esc(t("picker.figure.title", "click to set a different figure"))}">${a.value.toFixed(1)}</span></label>`).join("")}
+    <p class="ask">${t("picker.help", `Click a figure to set a different one - the group's own bar
+      keeps what the notes say.`)}</p>
+    <button data-act="apply">${t("common.apply", "Apply")}</button>
+    <button data-act="cancel">${t("common.cancel", "Cancel")}</button>
+    <span class="said muted"></span>`;
+
+  pop.querySelectorAll(".val").forEach(cell => {
+    cell.onclick = () => {
+      if (pop.dataset.busy) return;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "figure";
+      input.value = cell.textContent.trim();
+      cell.replaceWith(input);
+      input.focus();
+      input.select();
+      const done = async () => {
+        const typed = input.value.trim();
+        const actual = Number(cell.dataset.actual);
+        const value = typed === "" ? null
+          : Number(/^-?\d+,\d{1,2}$/.test(typed) ? typed.replace(",", ".") : typed);
+        if (typed !== "" && !Number.isFinite(value)) { input.focus(); return; }
+        try {
+          await call(unlocked(period, {
+            action: "adjust", period, group: cell.dataset.id,
+            value: value === null || value === actual ? null : value,
+          }));
+          pop.dataset.dirty = "1";
+          appendedPicker(anchor, await freshAppended(period), period);
+        } catch (e) {
+          const said = pop.querySelector(".said");
+          said.className = "said err";
+          said.textContent = closedMsg(e, period);
+          input.replaceWith(cell);
+        }
+      };
+      input.onblur = done;
+      input.onkeydown = e => {
+        if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+        if (e.key === "Escape") { input.replaceWith(cell); }
+      };
+    };
+  });
+
+  pop.querySelector("[data-act=cancel]").onclick = () => close();
+  pop.querySelector("[data-act=apply]").onclick = async () => {
+    const said = pop.querySelector(".said");
+    said.className = "said muted";
+    said.textContent = t("common.applying", "Applying…");
+    const controls = pop.querySelectorAll("button,input");
+    controls.forEach(c => (c.disabled = true));
+    pop.dataset.busy = "1";
+    const groups = [...pop.querySelectorAll("input:not(:checked)")]
+      .map(i => i.dataset.id);
+    try {
+      await call(unlocked(period, { action: "omit", period, groups }));
+      pop.dataset.dirty = "1";
+      delete pop.dataset.busy;
+      close();
+    } catch (e) {
+      delete pop.dataset.busy;
+      said.className = "said err";
+      said.textContent = closedMsg(e, period);
+      controls.forEach(c => (c.disabled = false));
+    }
+  };
+}
+
+let SCOPE = { mode: "always", period: null };
+let STAGED = [];
+
+const UNLOCKED = new Set();
+
+function unlocked(period, body) {
+  return UNLOCKED.has(period) ? Object.assign({ override: true }, body) : body;
+}
+
+const CLOSED_CODES = ["closed", "paste_closed"];
+function isClosed(e, words = /read-only|closed month/) {
+  return !!(e && CLOSED_CODES.includes(e.code)) || words.test((e && e.message) || String(e));
+}
+
+function closedMsg(e, period) {
+  const text = (e && e.message) || String(e);
+  return isClosed(e)
+    ? t("closed.say",
+        "{period} is closed - open it on the Month view and press \"Unlock this month\", then try again.",
+        { period: monthLabel(period) })
+    : text;
+}
+
+function scopeLine() {
+  if (SCOPE.mode === "always") return th("scope.line.always", "Changes apply to <b>every month</b>.");
+  return th("scope.line.onward", "Changes apply to <b>{period} and every later month</b>, once applied.",
+            { period: SCOPE.period });
+}
+
+const EDITORS = {
+  limits: ["editor.limits", "Edit limits…"],
+  majors: ["editor.majors", "Edit major groups…"],
+  minors: ["editor.minors", "Edit minor groups…"],
+  left: ["editor.left", "Edit the Left line…"],
+  words: ["editor.words", "Edit the words you teach…"],
+};
+
+function showEditor(anchor, wanted) {
+  if (wanted === "limits") limitsEditor(anchor);
+  else if (wanted === "left") leftEditor(anchor);
+  else if (wanted === "words") wordsEditor(anchor);
+  else groupsEditor(anchor, wanted);
+}
+
+function configMenu(anchor, target) {
+  const wanted = EDITORS[target] ? target : "limits";
+  const period = document.getElementById("period").value;
+  if (wanted === "limits") return limitsEditor(anchor);
+  if (!PERIODS.length || !period) {
+    SCOPE = { mode: "always", period: null, name: null };
+    STAGED = [];
+    return showEditor(anchor, wanted);
+  }
+  const { pop, close } = editorCard(anchor, false);
+  const label = periodLabel(period);
+  if (SCOPE.name !== period || !["always", "onward"].includes(SCOPE.mode)) {
+    SCOPE = { mode: "onward", period: label, name: period };
+    STAGED = [];
+  }
+  pop.innerHTML = `
+    <p class="ask">${t("scope.ask", "Which months should the changes apply to?")}</p>
+    <label><input type="radio" name="scope" value="onward"
+      ${SCOPE.mode === "onward" ? "checked" : ""}> ${th("scope.further", "{period} and all further months", { period: label })}</label>
+    <label><input type="radio" name="scope" value="always"
+      ${SCOPE.mode === "always" ? "checked" : ""}> ${t("scope.every", "Every month, the earlier ones too")}</label>
+    <p class="muted" style="margin:2px 0 0 24px">${t("scope.every_warn", "Earlier months are counted again under the new groups: their totals change, and the lines of a removed group become questions there.")}</p>
+    <hr style="border:0; border-top:1px solid var(--rule); margin:10px 0">
+    <button data-go="${wanted}">${esc(t(...EDITORS[wanted]))}</button>
+    <button data-cancel="1">${t("common.cancel", "Cancel")}</button>
+    <span class="said muted"></span>`;
+  pop.querySelectorAll("input[name=scope]").forEach(r => {
+    r.onchange = () => {
+      const dropped = STAGED.length;
+      SCOPE = { mode: r.value, period: label, name: period };
+      STAGED = [];
+      if (dropped) {
+        const said = pop.querySelector(".said") || pop;
+        said.textContent = t("scope.dropped", "{n} unapplied change(s) discarded.", { n: dropped });
+      }
+    };
+  });
+  pop.querySelectorAll("button").forEach(btn => {
+    btn.onclick = () => {
+      if (btn.dataset.cancel) return close();
+      const go = btn.dataset.go;
+      close();
+      showEditor(anchor, go);
+    };
+  });
+}
+
+function stagedPanel(pop, redraw) {
+  if (SCOPE.mode === "always") return "";
+  return `
+    <hr style="border:0; border-top:1px solid var(--rule); margin:10px 0">
+    <p class="scope">${scopeLine()}</p>
+    ${STAGED.length
+      ? `<ol class="staged">${STAGED.map(o =>
+          `<li>${esc(describeOp(o))}</li>`).join("")}</ol>
+         <button data-staged="apply">${t("common.apply", "Apply")}</button>
+         <button data-staged="discard">${t("staged.discard", "Discard")}</button>`
+      : `<p class="muted">${t("staged.none", "Nothing staged yet - your changes will be listed here.")}</p>`}`;
+}
+
+let SHOWN = { majors: {}, minors: {}, slots: {} };
+function rememberShown(cfg) {
+  SHOWN = { majors: {}, minors: {}, slots: {} };
+  (cfg.majors || []).forEach(m => {
+    SHOWN.majors[m.name] = m.label;
+    (m.minors || []).forEach(n => { SHOWN.minors[n.name] = n.label; });
+  });
+  ((cfg.left || {}).slots || []).forEach(sl => { SHOWN.slots[sl.id] = sl; });
+}
+const majorShown = name => SHOWN.majors[name] || name;
+const minorShown = name => SHOWN.minors[name] || name;
+const slotShown = id => (SHOWN.slots[id] && SHOWN.slots[id].label) || id;
+
+function describeOp(o) {
+  const major = majorShown(o.major);
+  switch (o.op) {
+    case "add_major": return t("op.add_major", "add the group {name}{limit}", {
+      name: o.name, limit: o.limit ? t("op.limit", ", limit {n}", { n: o.limit }) : "" });
+    case "remove_major": return o.minors_to
+      ? t("op.remove_major_to", "remove the group {major}, its minor groups to {to}",
+          { major, to: majorShown(o.minors_to) })
+      : t("op.remove_major", "remove the group {major}", { major });
+    case "rename_major": return t("op.rename", "rename {old} to {new}", { old: major, new: o.name });
+    case "rename_minor": return t("op.rename", "rename {old} to {new}",
+                                  { old: minorShown(o.minor), new: o.name });
+    case "reroute_minor": return t("op.reroute", "count {minor} under {major}",
+                                   { minor: minorShown(o.minor), major });
+    case "add_minor": return t("op.add_minor", "add {name} under {major}", { name: o.name, major });
+    case "remove_minor": return t("op.remove_minor", "remove {minor}", { minor: minorShown(o.minor) });
+    case "set_limit": return o.value === null
+      ? t("op.drop_limit", "remove the limit on {major}", { major })
+      : t("op.set_limit", "limit {major} to {value}", { major, value: o.value });
+    case "rename_limit": return t("op.rename_limit", "call {major}'s limit \"{label}\"",
+                                  { major, label: o.label });
+    case "move_limit": return t("op.move_limit", "move {major}'s limit to {to}",
+                                { major, to: majorShown(o.to) });
+    case "learn_word": return t("op.learn_word", "teach {word} → {group}",
+                                { word: o.word, group: minorShown(o.group) });
+    case "forget_word": return t("op.forget_word", "forget {word}", { word: o.word });
+    case "left_rename_slot": {
+      const was = SHOWN.slots[o.slot] || {};
+      const slot = slotShown(o.slot);
+      if (o.label === was.label && o.place && o.place !== was.place)
+        return o.place === "after"
+          ? t("op.left_after", "{slot}: its name after the figure", { slot })
+          : t("op.left_before", "{slot}: its name before the figure", { slot });
+      return t("op.left_rename", "call {slot} \"{label}\"", { slot, label: o.label });
+    }
+    case "left_set_kind": return t("op.left_kind", "{slot} counted as {kind}",
+                                   { slot: slotShown(o.slot), kind: kindWord(o.kind) });
+    case "left_add_slot": return t("op.left_add", "add {label} to the Left line", { label: o.label });
+    case "left_remove_slot": return t("op.left_remove", "remove {slot} from the Left line",
+                                      { slot: slotShown(o.slot) });
+    case "left_reorder": return t("op.left_reorder", "the Left line in a new order");
+    case "left_reset": return t("op.left_reset", "the original Left line back");
+    default: return o.op.replace(/_/g, " ");
+  }
+}
+
+function wireStaged(pop, redraw) {
+  const apply = pop.querySelector("[data-staged=apply]");
+  const discard = pop.querySelector("[data-staged=discard]");
+  if (discard) discard.onclick = () => { STAGED = []; redrawCurrent(pop, redraw); };
+  if (!apply) return;
+
+  const said = pop.querySelector(".said");
+  const body = () => unlocked(SCOPE.name, {
+    action: "configure", scope: SCOPE.mode, period: SCOPE.name, ops: STAGED,
+  });
+
+  apply.onclick = async () => {
+    apply.disabled = true;
+    said.className = "said muted";
+    said.textContent = t("staged.checking", "Checking…");
+    try {
+      const preview = await call(body());
+      apply.hidden = true;
+      said.innerHTML = `${th("staged.confirm", "{n} change(s) to {months}.",
+                             { n: STAGED.length, months: preview.months.join(", ") })}
+        <button data-go="yes">${t("staged.yes", "Yes, apply")}</button>
+        <button data-go="no">${t("staged.no", "No, keep staging")}</button>`;
+      said.querySelector("[data-go=no]").onclick = () => {
+        apply.hidden = false;
+        apply.disabled = false;
+        said.innerHTML = "";
+      };
+      said.querySelector("[data-go=yes]").onclick = async () => {
+        said.innerHTML = "";
+        said.textContent = t("common.applying", "Applying…");
+        try {
+          await call(Object.assign({ confirm: true }, body()));
+          STAGED = [];
+          pop.dataset.dirty = "1";
+          redraw(await call({ action: "config", period: SCOPE.name }));
+        } catch (e) {
+          apply.hidden = false;
+          apply.disabled = false;
+          said.className = "said err";
+          said.textContent = closedMsg(e, SCOPE.name);
+        }
+      };
+    } catch (e) {
+      apply.disabled = false;
+      said.className = "said err";
+      said.textContent = closedMsg(e, SCOPE.name);
+    }
+  };
+}
+
+function editorConfig(always = false) {
+  return { action: "config", period: !always && SCOPE.mode !== "always" ? SCOPE.name : undefined };
+}
+
+async function redrawCurrent(pop, redraw) {
+  try {
+    redraw(await call({ action: "config", period: SCOPE.name || undefined }));
+  } catch (e) { }
+}
+
+async function applyOp(pop, body, redraw, onFail) {
+  const said = pop.querySelector(".said");
+  if (SCOPE.mode !== "always" && !pop.dataset.always) {
+    STAGED.push(body);
+    said.className = "said muted";
+    said.textContent = t("staged.count", "{n} change(s) staged.", { n: STAGED.length });
+    return redrawCurrent(pop, redraw);
+  }
+  said.className = "said muted";
+  said.textContent = t("common.saving", "Saving…");
+  const controls = pop.querySelectorAll("button,select,input");
+  controls.forEach(c => (c.disabled = true));
+  pop.dataset.busy = "1";
+  try {
+    const cfg = await call(Object.assign({ action: "configure" }, body));
+    pop.dataset.dirty = "1";
+    redraw(cfg);
+  } catch (e) {
+    said.className = "said err";
+    said.textContent = e.message || String(e);
+    controls.forEach(c => (c.disabled = false));
+    if (onFail) onFail(e);
+  } finally {
+    delete pop.dataset.busy;
+  }
+}
+
+async function applyChain(pop, ops, redraw) {
+  for (let i = 0; i < ops.length; i++) {
+    const last = i === ops.length - 1;
+    let failed = false;
+    await applyOp(pop, ops[i], cfg => { if (last) redraw(cfg); }, () => (failed = true));
+    if (failed) return;
+  }
+}
+
+function inlineInput(btn, placeholder, onGo, initial) {
+  const field = document.createElement("span");
+  field.innerHTML = `<input type="text" placeholder="${esc(placeholder)}">
+    <button data-go="1">${t("common.ok", "OK")}</button>`;
+  btn.replaceWith(field);
+  const input = field.querySelector("input");
+  if (initial) input.value = initial;
+  let sent = false;
+  const go = () => {
+    if (sent || !input.value.trim()) return;
+    sent = true;
+    onGo(input.value.trim());
+  };
+  field.querySelector("[data-go]").onclick = go;
+  input.onkeydown = e => {
+    if (e.key === "Enter") { e.preventDefault(); go(); }
+  };
+  input.focus();
+}
+
+async function limitsEditor(anchor) {
+  const { pop, close } = editorCard(anchor, true);
+  pop.dataset.always = "1";
+  pop.innerHTML = `<p class="ask">${t("common.loading", "Loading…")}</p>`;
+  let cfg;
+  try { cfg = await call(editorConfig(true)); }
+  catch (e) { pop.innerHTML = `<p class="err">${esc(e.message || e)}</p>`; return; }
+  draw(cfg);
+
+  function draw(cfg) {
+    rememberShown(cfg);
+    const majors = cfg.majors.filter(m => m.tier !== "EXCLUDED");
+    const limited = cfg.limit_order
+      .map(name => majors.find(m => m.name === name))
+      .filter(Boolean);
+    const free = majors.filter(m => m.limit === null);
+    pop.innerHTML = `
+      <h3>${t("limits.title", "Limits")}</h3>
+      <p class="ask">${t("limits.help", `Each row watches one major group. Remove frees the group;
+        Watch points the row at another.`)}</p>
+      ${limited.map(m => `
+        <div class="erow" data-major="${esc(m.name)}">
+          <b>${esc(m.limit_label || m.label)}</b>
+          <span class="muted">${esc(m.label)} · ${m.limit}</span>
+          <button data-act="value">${t("limits.value", "Value")}</button>
+          <button data-act="label">${t("common.rename", "Rename")}</button>
+          <button data-act="watch">${t("limits.watch", "Watch…")}</button>
+          <button data-act="drop">${t("common.remove", "Remove")}</button>
+        </div>`).join("")}
+      <h3>${t("limits.add", "Add a limit")}</h3>
+      <p class="ask">${t("limits.add.help", `Choose a group that has none yet, or type a name: a
+        group's own name means that group, and a new name makes a new group carrying the limit.`)}</p>
+      <div class="erow">
+        <select id="new-limit-major">
+          <option value="">${t("limits.choose", "Choose a group…")}</option>
+          ${free.map(m => `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("")}
+          <option value="" data-new="1">${t("limits.new_group", "— a new group —")}</option>
+        </select>
+        <input type="text" id="new-limit-name" placeholder="${esc(t("limits.new_name", "new group name"))}" size="12">
+        <input type="text" id="new-limit-value" placeholder="${esc(t("limits.thousands", "thousands"))}" size="9">
+        <button data-act="add">${t("common.add", "Add")}</button>
+      </div>
+      <div class="erow">
+        <input type="text" id="new-limit-label" placeholder="${esc(t("limits.shown_as", "shown as (optional)"))}" size="14">
+        <span class="muted">${t("limits.shown_as.help", "the boxed name, when it differs from the group's")}</span>
+      </div>
+      <button data-act="done">${t("common.done", "Done")}</button>
+      <span class="said muted"></span>`;
+
+    const redraw = c => draw(c);
+    pop.querySelectorAll("[data-act]").forEach(btn => {
+      const row = btn.closest("[data-major]");
+      const major = row && row.dataset.major;
+      btn.onclick = () => {
+        const act = btn.dataset.act;
+        if (act === "done") return close();
+        if (act === "drop") return applyOp(pop, { op: "set_limit", major, value: null }, redraw);
+        if (act === "value") return inlineInput(btn, t("limits.thousands", "thousands"), v => {
+          const n = parseInt(v, 10);
+          if (n > 0) applyOp(pop, { op: "set_limit", major, value: n }, redraw);
+          else pop.querySelector(".said").textContent = t("limits.positive", "A positive number of thousands.");
+        });
+        if (act === "label") return inlineInput(btn, t("limits.shown_name", "shown name"), v =>
+          applyOp(pop, { op: "rename_limit", major, label: v }, redraw));
+        if (act === "watch") {
+          const options = free.map(m =>
+            `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("");
+          if (!options) {
+            pop.querySelector(".said").textContent =
+              t("limits.all_have", "Every group already carries a limit.");
+            return;
+          }
+          const sel = document.createElement("select");
+          sel.innerHTML = `<option value="">${t("limits.watch_pick", "watch…")}</option>` + options;
+          btn.replaceWith(sel);
+          sel.onchange = () => sel.value &&
+            applyOp(pop, { op: "move_limit", major, to: sel.value }, redraw);
+          return;
+        }
+        if (act === "add") {
+          let target = pop.querySelector("#new-limit-major").value;
+          const fresh = pop.querySelector("#new-limit-name").value.trim();
+          const label = pop.querySelector("#new-limit-label").value.trim();
+          const n = parseInt(pop.querySelector("#new-limit-value").value, 10);
+          const said = pop.querySelector(".said");
+          if (!(n > 0)) { said.textContent = t("limits.positive", "A positive number of thousands."); return; }
+          if (fresh) {
+            const typed = fresh.toLowerCase();
+            const named = cfg.majors.find(m =>
+              m.name.toLowerCase() === typed || m.label.toLowerCase() === typed);
+            const picked = target && cfg.majors.find(m => m.name === target);
+            if (picked && (!named || named.name !== picked.name)) {
+              said.textContent = t("limits.keep_one", "You chose {group} and typed {name} - keep one.",
+                                   { group: picked.label, name: fresh });
+              return;
+            }
+            if (named && named.limit !== null) {
+              said.textContent = t("limits.has_one",
+                "{name} already has a limit - change it with Value on its row.", { name: named.label });
+              return;
+            }
+            if (named) target = named.name;
+          }
+          if (!target && !fresh) { said.textContent = t("limits.pick", "Pick a group, or name a new one."); return; }
+          const chain = target
+            ? [{ op: "set_limit", major: target, value: n }]
+            : [{ op: "add_major", name: fresh, tier: "NECESSARY", limit: n }];
+          if (label) chain.push({ op: "rename_limit", major: target || fresh, label });
+          return applyChain(pop, chain, redraw);
+        }
+      };
+    });
+  }
+}
+
+async function wordsEditor(anchor) {
+  const { pop, close } = editorCard(anchor, true);
+  pop.innerHTML = `<p class="ask">${t("common.loading", "Loading…")}</p>`;
+  let cfg;
+  try { cfg = await call({ action: "config", period: SCOPE.name || undefined }); }
+  catch (e) { pop.innerHTML = `<p class="err">${esc(e.message || e)}</p>`; return; }
+  draw(cfg);
+
+  function draw(cfg) {
+    rememberShown(cfg);
+    const words = cfg.words || [];
+    const groups = cfg.majors.flatMap(m =>
+      m.minors.map(n => ({ name: n.name, label: n.label === m.label ? n.label : `${m.label} · ${n.label}` })));
+    pop.innerHTML = `
+      <h3>${t("words.title", "Words you teach")}</h3>
+      <p class="ask">${t("words.help", `A line carrying one of these books to its group without
+        being asked about. What you answer or move yourself still wins, and
+        where two words fit one line the longer one decides it.`)}</p>
+      ${words.length ? words.map(w => `
+        <div class="erow" data-word="${esc(w.word)}">
+          <b>${esc(w.word)}</b>
+          <span class="muted">→ ${esc(w.label)}</span>
+          <button data-act="forget">${t("words.forget", "Forget")}</button>
+        </div>`).join("") : `<p class="muted">${t("words.none", "Nothing taught yet.")}</p>`}
+      <h3>${t("words.teach_one", "Teach one")}</h3>
+      <div class="erow">
+        <input type="text" id="new-word" placeholder="${esc(t("words.placeholder", "a word, or two"))}" size="16">
+        <select id="new-word-group">
+          ${groups.map(g => `<option value="${esc(g.name)}">${esc(g.label)}</option>`).join("")}
+        </select>
+        <button data-act="teach">${t("words.teach", "Teach")}</button>
+      </div>
+      <button data-act="done">${t("common.done", "Done")}</button>
+      ${stagedPanel(pop, draw)}
+      <span class="said muted"></span>`;
+    wireStaged(pop, draw);
+
+    const redraw = c => draw(c);
+    pop.querySelectorAll("[data-act]").forEach(btn => {
+      btn.onclick = () => {
+        const act = btn.dataset.act;
+        if (act === "done") return close();
+        if (act === "forget") {
+          return applyOp(pop, {
+            op: "forget_word", word: btn.closest("[data-word]").dataset.word,
+          }, redraw);
+        }
+        const word = pop.querySelector("#new-word").value.trim();
+        const said = pop.querySelector(".said");
+        if (word.replace(/[^\p{L}\p{N}]/gu, "").length < 3) {
+          said.className = "said err";
+          said.textContent = t("words.too_short", "A word of three letters or more.");
+          return;
+        }
+        applyOp(pop, {
+          op: "learn_word", word, group: pop.querySelector("#new-word-group").value,
+        }, redraw);
+      };
+    });
+  }
+}
+
+const TIER_WORDS = {
+  NECESSARY: ["tier.necessary", "necessary"],
+  FREQUENT: ["tier.frequent", "frequent"],
+  OCCASIONAL: ["tier.occasional", "occasional"],
+};
+const tierLabel = tier => (TIER_WORDS[tier] ? t(...TIER_WORDS[tier]) : tier.toLowerCase());
+
+const KIND_WORDS = {
+  card: ["kind.card", "card balance"], cash: ["kind.cash", "cash in hand"],
+  purse: ["kind.purse", "weekly purse"], carry: ["kind.carry", "carried over"],
+};
+const kindWord = k => (KIND_WORDS[k] ? t(...KIND_WORDS[k]) : k);
+
+async function groupsEditor(anchor, kind = "majors") {
+  const minorsMode = kind === "minors";
+  const { pop, close } = editorCard(anchor, true);
+  pop.innerHTML = `<p class="ask">${t("common.loading", "Loading…")}</p>`;
+  let cfg;
+  try { cfg = await call(editorConfig()); }
+  catch (e) { pop.innerHTML = `<p class="err">${esc(e.message || e)}</p>`; return; }
+  draw(cfg);
+
+  function draw(cfg) {
+    rememberShown(cfg);
+    const majors = cfg.majors.filter(m => m.tier !== "EXCLUDED");
+    const aside = cfg.majors.filter(m => m.tier === "EXCLUDED");
+    const options = majors.map(m =>
+      `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("");
+    pop.innerHTML = minorsMode ? minorsCard(majors, options, aside) : majorsCard(majors);
+    wireStaged(pop, draw);
+
+    const redraw = c => draw(c);
+    pop.querySelectorAll("[data-act]").forEach(el => {
+      const majorRow = el.closest("[data-major]");
+      const minorRow = el.closest("[data-minor]");
+      const act = el.dataset.act;
+      if (act === "route") {
+        el.onchange = () => el.value && applyOp(pop, {
+          op: "reroute_minor", minor: minorRow.dataset.minor, major: el.value,
+        }, redraw);
+        return;
+      }
+      el.onclick = () => {
+        const said = pop.querySelector(".said");
+        if (act === "done") return close();
+        if (act === "rename-major") return inlineInput(el, t("groups.new_name", "new name"), v =>
+          applyOp(pop, { op: "rename_major", major: majorRow.dataset.major, name: v }, redraw));
+        if (act === "remove-major") {
+          return applyOp(pop, { op: "remove_major", major: majorRow.dataset.major }, redraw);
+        }
+        if (act === "rename-minor") return inlineInput(el, t("groups.new_name", "new name"), v =>
+          applyOp(pop, { op: "rename_minor", minor: minorRow.dataset.minor, name: v }, redraw));
+        if (act === "remove-minor") {
+          const go = () => applyOp(pop, { op: "remove_minor", minor: minorRow.dataset.minor }, redraw);
+          if (minorRow.dataset.role !== "salary") return go();
+          el.hidden = true;
+          const ask = document.createElement("span");
+          ask.className = "muted sure";
+          ask.innerHTML = `${th("minors.salary.sure", `{name} holds your salary: without it, the
+            salary line goes to Questions, and it is counted wherever you answer it. Remove it?`,
+            { name: minorRow.querySelector("b").textContent })}
+            <button data-sure="yes">${t("minors.salary.yes", "Yes, remove it")}</button>
+            <button data-sure="no">${t("minors.salary.no", "No, keep it")}</button>`;
+          el.after(ask);
+          ask.querySelector('[data-sure="no"]').onclick = () => { ask.remove(); el.hidden = false; };
+          ask.querySelector('[data-sure="yes"]').onclick = go;
+          return;
+        }
+        if (act === "add-major") {
+          const name = pop.querySelector("#new-major-name").value.trim();
+          const tier = pop.querySelector("#new-major-tier").value;
+          const limit = parseInt(pop.querySelector("#new-major-limit").value, 10);
+          if (!name) { said.textContent = t("groups.no_name", "Give the group a name."); return; }
+          const typed = pop.querySelector("#new-major-limit").value.trim();
+          if (typed && !(limit > 0)) {
+            said.textContent = t("groups.bad_limit", "A limit is a positive number of thousands, or blank.");
+            return;
+          }
+          const op = { op: "add_major", name, tier };
+          if (typed) op.limit = limit;
+          return applyOp(pop, op, redraw);
+        }
+        if (act === "add-minor") {
+          const name = pop.querySelector("#new-minor-name").value.trim();
+          const major = pop.querySelector("#new-minor-major").value;
+          if (!name) { said.textContent = t("groups.no_name", "Give the group a name."); return; }
+          if (!major) { said.textContent = t("groups.no_major", "Choose the major it belongs under."); return; }
+          applyOp(pop, { op: "add_minor", name, major }, redraw);
+        }
+      };
+    });
+  }
+
+  function majorsCard(majors) {
+    const spending = majors.filter(m => !m.income);
+    const last = m => !m.income && spending.length === 1;
+    return `
+      <h3>${t("majors.title", "Major groups")}</h3>
+      <p class="ask">${t("majors.help", `A major is a heading: one bar on the chart, one figure in a
+        Total, and at most one limit. Remove takes it away with its minor groups, and the
+        lines they held go to Questions, to be placed again. One group spending can go to
+        always stays.`)}</p>
+      ${majors.map(m => `
+        <div class="erow" data-major="${esc(m.name)}">
+          <b>${esc(m.label)}</b>
+          <span class="muted">${esc(tierLabel(m.tier))}${m.limit ? t("majors.limit", " · limit {n}", { n: m.limit }) : ""}${
+            m.minors.length ? t("majors.minors", " · {n} minor{s}",
+                                { n: m.minors.length, s: m.minors.length === 1 ? "" : "s" }) : ""}</span>
+          <button data-act="rename-major">${t("common.rename", "Rename")}</button>
+          ${last(m) ? "" : `<button data-act="remove-major">${t("common.remove", "Remove")}</button>`}
+        </div>`).join("")}
+      <h3>${t("majors.add", "Add a major group")}</h3>
+      <p class="ask">${t("majors.add.help", `The tier decides which Total it reaches. A limit is
+        optional and can be set later.`)}</p>
+      <div class="erow">
+        <input type="text" id="new-major-name" placeholder="${esc(t("groups.name", "name"))}" size="12">
+        <select id="new-major-tier">
+          <option value="NECESSARY">${tierLabel("NECESSARY")}</option>
+          <option value="FREQUENT">${tierLabel("FREQUENT")}</option>
+          <option value="OCCASIONAL">${tierLabel("OCCASIONAL")}</option>
+        </select>
+        <input type="text" id="new-major-limit" placeholder="${esc(t("majors.limit_optional", "limit (optional)"))}" size="11">
+        <button data-act="add-major">${t("common.add", "Add")}</button>
+      </div>
+      <button data-act="done">${t("common.done", "Done")}</button>
+      ${stagedPanel(pop, draw)}
+      <span class="said muted"></span>`;
+  }
+
+  function minorsCard(majors, options, aside = []) {
+    const rows = majors.flatMap(m => m.minors.map(n => ({ minor: n, major: m })));
+    const asideRows = aside.flatMap(m => m.minors.map(n => ({ minor: n, major: m })));
+    return `
+      <h3>${t("minors.title", "Minor groups")}</h3>
+      <p class="ask">${t("minors.help", `Every minor lives under one major, and several may share
+        the same one - that is how three lines add up to a single figure.
+        Route moves one somewhere else. Remove takes one away: the lines it held go
+        to Questions, to be placed again.`)}</p>
+      ${rows.length ? rows.map(({ minor, major }) => `
+        <div class="erow" data-minor="${esc(minor.name)}">
+          <b>${esc(minor.label)}</b>
+          <span class="muted">${th("minors.under", "under {name}", { name: major.label })}</span>
+          <button data-act="rename-minor">${t("common.rename", "Rename")}</button>
+          <select data-act="route">
+            <option value="">${t("minors.route", "route to…")}</option>${options}
+          </select>
+          <button data-act="remove-minor">${t("common.remove", "Remove")}</button>
+        </div>`).join("")
+        : `<p class="ask">${t("minors.none", "No minor groups yet.")}</p>`}
+      ${asideRows.length ? `<p class="ask">${t("minors.aside", `Counted in no Total - they can be
+        renamed or removed, not routed.`)}</p>` : ""}
+      ${asideRows.map(({ minor, major }) => `
+        <div class="erow" data-minor="${esc(minor.name)}"${minor.role ? ` data-role="${esc(minor.role)}"` : ""}>
+          <b>${esc(minor.label)}</b>
+          <span class="muted">${th("minors.under", "under {name}", { name: major.label })}</span>
+          <button data-act="rename-minor">${t("common.rename", "Rename")}</button>
+          <button data-act="remove-minor">${t("common.remove", "Remove")}</button>
+        </div>`).join("")}
+      <h3>${t("minors.add", "Add a minor group")}</h3>
+      <div class="erow">
+        <input type="text" id="new-minor-name" placeholder="${esc(t("groups.name", "name"))}" size="12">
+        <select id="new-minor-major">
+          <option value="">${t("minors.which_major", "under which major…")}</option>${options}
+        </select>
+        <button data-act="add-minor">${t("common.add", "Add")}</button>
+      </div>
+      <button data-act="done">${t("common.done", "Done")}</button>
+      ${stagedPanel(pop, draw)}
+      <span class="said muted"></span>`;
+  }
+}
+
+async function leftEditor(anchor) {
+  const { pop, close } = editorCard(anchor, true);
+  pop.innerHTML = `<p class="ask">${t("common.loading", "Loading…")}</p>`;
+  let cfg;
+  try { cfg = await call(editorConfig()); }
+  catch (e) { pop.innerHTML = `<p class="err">${esc(e.message || e)}</p>`; return; }
+  draw(cfg);
+
+  function draw(cfg) {
+    rememberShown(cfg);
+    const slots = (cfg.left && cfg.left.slots) || [];
+    const kinds = (cfg.left && cfg.left.kinds) || ["card", "cash", "purse", "carry"];
+    const said = kindWord;
+    pop.innerHTML = `
+      <h3>${t("left.title", "The Left line")}</h3>
+      <p class="ask">${t("left.help", `One row per figure, in the order they are written. The name
+        prints before or after its figure; the kind decides how a month still
+        being written is recounted.`)}</p>
+      ${slots.map((sl, i) => `
+        <div class="erow" data-slot="${esc(sl.id)}">
+          <b>${esc(sl.label || sl.id)}</b>
+          <span class="muted">${esc(said(sl.kind))} ·
+            ${sl.place === "after" ? t("left.name_after", "name after") : t("left.name_before", "name before")}</span>
+          <button data-act="label">${t("left.rename", "Name")}</button>
+          <button data-act="side">${sl.place === "after" ? t("left.to_before", "→ before") : t("left.to_after", "→ after")}</button>
+          <select data-act="kind">
+            ${kinds.map(k => `<option value="${esc(k)}"
+              ${k === sl.kind ? "selected" : ""}>${esc(said(k))}</option>`).join("")}
+          </select>
+          <button data-act="up" ${i ? "" : "disabled"}>↑</button>
+          <button data-act="down" ${i < slots.length - 1 ? "" : "disabled"}>↓</button>
+          <button data-act="drop" ${slots.length > 1 ? "" : "disabled"}>${t("common.remove", "Remove")}</button>
+        </div>`).join("")}
+      <h3>${t("left.add", "Add a figure")}</h3>
+      <div class="erow">
+        <input type="text" id="new-left-label" placeholder="${esc(t("left.name", "name"))}" size="14">
+        <select id="new-left-kind">
+          ${kinds.map(k => `<option value="${esc(k)}">${esc(said(k))}</option>`).join("")}
+        </select>
+        <button data-act="add">${t("common.add", "Add")}</button>
+      </div>
+      <div class="erow">
+        <button data-act="reset">${t("left.reset", "Back to the original line")}</button>
+        <button data-act="done">${t("common.done", "Done")}</button>
+      </div>
+      ${stagedPanel(pop, draw)}
+      <span class="said muted"></span>`;
+    wireStaged(pop, draw);
+
+    const redraw = c => draw(c);
+    const order = slots.map(sl => sl.id);
+    pop.querySelectorAll("[data-act]").forEach(el => {
+      const row = el.closest("[data-slot]");
+      const slot = row && row.dataset.slot;
+      const act = el.dataset.act;
+      if (act === "kind") {
+        el.onchange = () => applyOp(pop,
+          { op: "left_set_kind", slot, kind: el.value }, redraw);
+        return;
+      }
+      el.onclick = () => {
+        if (act === "done") return close();
+        if (act === "reset") return applyOp(pop, { op: "left_reset" }, redraw);
+        if (act === "label") {
+          const current = slots.find(sl => sl.id === slot);
+          return inlineInput(el, t("left.name", "name"), v => applyOp(pop, {
+            op: "left_rename_slot", slot, label: v,
+            place: current.place, join: current.join,
+          }, redraw), current.label);
+        }
+        if (act === "side") {
+          const current = slots.find(sl => sl.id === slot);
+          return applyOp(pop, {
+            op: "left_rename_slot", slot, label: current.label,
+            place: current.place === "after" ? "before" : "after",
+            join: current.place === "after" ? " " : "",
+          }, redraw);
+        }
+        if (act === "up" || act === "down") {
+          const at = order.indexOf(slot);
+          const to = act === "up" ? at - 1 : at + 1;
+          const moved = order.slice();
+          [moved[at], moved[to]] = [moved[to], moved[at]];
+          return applyOp(pop, { op: "left_reorder", order: moved }, redraw);
+        }
+        if (act === "drop") return applyOp(pop, { op: "left_remove_slot", slot }, redraw);
+        if (act === "add") {
+          const label = pop.querySelector("#new-left-label").value.trim();
+          const kind = pop.querySelector("#new-left-kind").value;
+          if (!label) { pop.querySelector(".said").textContent = t("left.no_name", "Give it a name."); return; }
+          applyOp(pop, { op: "left_add_slot", label, kind }, redraw);
+        }
+      };
+    });
+  }
+}
+
+function moverPopup(anchor, src, period) {
+  document.querySelectorAll(".mover").forEach(p => p.remove());
+
+  const cands = [...new Set(src.flatMap(s => s.candidates || []))];
+  const pop = document.createElement("div");
+  pop.className = "mover";
+  pop.innerHTML = `
+    <div class="src">${src.map(s => `<div class="src-line">${s.date ? `<span class="src-date">${esc(s.date)}</span>` : ""}<code>${esc(s.raw)}</code></div>`).join("")}</div>
+    <p class="ask">${t("move.where", "Where should this go?")}</p>
+    ${cands.map(c => `<button data-group="${esc(c)}">${esc(c)}</button>`).join(" ")}
+    <button data-prompt="1">${t("common.other", "Other…")}</button>
+    ${src.some(s => s.kind === "moved")
+      ? `<button data-lift="1" title="${esc(t("move.put_back.title", "lift your move and let the rules decide again"))}">${t("move.put_back", "Put it back")}</button>` : ""}
+    <button data-cancel="1">${t("common.cancel", "Cancel")}</button>
+    <span class="muted"></span>`;
+  document.body.appendChild(pop);
+
+  call({ action: "day", period, entries: src.map(s => ({ raw: s.raw, occurrence: s.occurrence })) })
+    .then(days => {
+      const list = pop.querySelector(".src");
+      if (!list || !Array.isArray(days) || !days.length) return;
+      list.innerHTML = days.map(d => dayWindow(d.date, d.lines)).join("");
+      scrollDays(list);
+    })
+    .catch(() => {});
+
+  const rect = anchor.getBoundingClientRect();
+  const room = Math.min(348, innerWidth - 8);
+  pop.style.top = `${rect.bottom + scrollY + 6}px`;
+  pop.style.left = `${Math.max(8, Math.min(rect.left + scrollX, scrollX + innerWidth - room))}px`;
+
+  let busy = false;
+  const onKey = e => { if (e.key === "Escape" && !busy) close(); };
+  const onDoc = e => { if (!busy && !pop.contains(e.target)) close(); };
+  function close() {
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("pointerdown", onDoc, true);
+    pop.remove();
+  }
+  document.addEventListener("keydown", onKey);
+  document.addEventListener("pointerdown", onDoc, true);
+
+  async function move(group, isNew) {
+    busy = true;
+    pop.querySelectorAll("button,input").forEach(b => (b.disabled = true));
+    const said = pop.querySelector(".muted");
+    said.textContent = t("move.moving", "Moving…");
+    const placed = src.filter(s => s.kind !== "answered");
+    const answered = src.filter(s => s.kind === "answered");
+    try {
+      for (const s of placed) {
+        await call(unlocked(period, {
+          action: "move", period, raw: s.raw, occurrence: s.occurrence,
+          group, new: isNew || !(s.candidates || []).includes(group),
+        }));
+      }
+      if (!answered.length) {
+        pop.dataset.done = "1";
+        close();
+        return render();
+      }
+      const entries = answered.map(s => ({ raw: s.raw, occurrence: s.occurrence }));
+      await call(unlocked(period, { action: "unanswer", period, entries }));
+      const qs = await call({ action: "questions", period });
+      for (const s of answered) {
+        const q = qs.find(x => x.raw === s.raw && x.occurrence === s.occurrence);
+        const asNew = isNew || !(s.candidates || []).includes(group);
+        await call(unlocked(period, q
+          ? { action: "answer", period, number: q.number, group, new: asNew }
+          : { action: "move", period, raw: s.raw, occurrence: s.occurrence,
+              group, new: asNew }));
+      }
+      close();
+      render();
+    } catch (e) {
+      busy = false;
+      said.className = "err";
+      said.textContent = closedMsg(e, period);
+      pop.querySelectorAll("button").forEach(b => (b.disabled = false));
+    }
+  }
+
+  async function lift() {
+    busy = true;
+    pop.querySelectorAll("button,input").forEach(b => (b.disabled = true));
+    pop.querySelector(".muted").textContent = t("move.putting_back", "Putting it back…");
+    try {
+      for (const s of src.filter(x => x.kind === "moved")) {
+        await call(unlocked(period, {
+          action: "move", period, raw: s.raw, occurrence: s.occurrence, group: null,
+        }));
+      }
+      close();
+      render();
+    } catch (e) {
+      busy = false;
+      pop.querySelectorAll("button,input").forEach(b => (b.disabled = false));
+      const said = pop.querySelector(".muted");
+      said.className = "muted err";
+      said.textContent = closedMsg(e, period);
+    }
+  }
+
+  pop.querySelectorAll("button").forEach(btn => {
+    btn.onclick = () => {
+      if (btn.dataset.cancel) return close();
+      if (btn.dataset.lift) return lift();
+      if (btn.dataset.prompt) {
+        const field = document.createElement("span");
+        field.innerHTML = `<input type="text" placeholder="${esc(t("common.group_enter", "group name, then Enter"))}">
+          <button data-go="1">${t("move.move", "Move")}</button>`;
+        btn.replaceWith(field);
+        const input = field.querySelector("input");
+        const go = () => input.value.trim() && meantGroup(
+          input.value.trim(), period, pop.querySelector(".muted"), g => move(g, true));
+        field.querySelector("[data-go]").onclick = go;
+        input.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); go(); } };
+        input.focus();
+        return;
+      }
+      move(btn.dataset.group, false);
+    };
+  });
+}
+
+function oneLetterOff(a, b) {
+  if (a === b || Math.abs(a.length - b.length) > 1) return false;
+  if (a.length === b.length) {
+    const at = [...a].map((c, i) => (c === b[i] ? -1 : i)).filter(i => i >= 0);
+    return at.length === 1 || (at.length === 2 && at[1] === at[0] + 1
+      && a[at[0]] === b[at[1]] && a[at[1]] === b[at[0]]);
+  }
+  const [short, long] = a.length < b.length ? [a, b] : [b, a];
+  let i = 0;
+  while (i < short.length && short[i] === long[i]) i++;
+  return short.slice(i) === long.slice(i + 1);
+}
+
+async function nearGroup(typed, period) {
+  const key = typed.trim().toLowerCase();
+  if (key.length < 4) return null;
+  const names = [];
+  try {
+    const cfg = await call(period ? { action: "config", period } : { action: "config" });
+    for (const m of cfg.majors) names.push(m.label, ...m.minors.map(n => n.label));
+    if (period) {
+      const d = await call({ action: "totals", period, year: new Date().getFullYear() });
+      names.push(...d.majors.filter(m => !m.saved && !m.overspent).map(m => m.name));
+    }
+  } catch (e) {
+    return null;
+  }
+  if (names.some(n => n.toLowerCase() === key)) return null;
+  return names.find(n => oneLetterOff(n.toLowerCase(), key)) || null;
+}
+
+async function meantGroup(typed, period, said, go) {
+  const near = await nearGroup(typed, period);
+  if (!near || !said) return go(typed);
+  said.className = said.className.replace(/\berr\b/, "").trim() + " near";
+  said.innerHTML = `${th("near.ask", "Did you mean {near}?", { near })}
+    <button data-near="yes">${th("near.yes", "Yes, {near}", { near })}</button>
+    <button data-near="no">${th("near.no", "No, a new group {typed}", { typed })}</button>`;
+  said.querySelector('[data-near="yes"]').onclick = () => go(near);
+  said.querySelector('[data-near="no"]').onclick = () => go(typed);
+}
+
+function dayWindow(date, lines, raw) {
+  if (!lines || !lines.length) return raw === undefined ? "" : `<code>${esc(raw)}</code>`;
+  return `<div class="day">${date ? `<div class="day-date">${esc(date)}</div>` : ""}
+    <div class="day-lines">${lines.map(l => l.this
+      ? `<b class="this">${esc(l.text)}</b>`
+      : `<span>${esc(l.text)}</span>`).join("")}</div></div>`;
+}
+
+function scrollDays(root) {
+  root.querySelectorAll(".day-lines").forEach(box => {
+    const first = box.querySelector(".this");
+    if (first) {
+      box.scrollTop = Math.max(0, first.offsetTop - (box.clientHeight - first.offsetHeight) / 2);
+    }
+  });
+}
+
+let CHART_REPAINT = null;
+let resizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (CHART_REPAINT) CHART_REPAINT(); }, 120);
+});
+
+async function viewQuestions(period) {
+  const rows = await call({ action: "questions", period });
+  markQuestions(rows.length);
+
+  const again = `
+    <div class="lockbar">
+      <span>${rows.length
+        ? t("questions.open", "{n} question{s} still open.",
+            { n: rows.length, s: rows.length === 1 ? "" : "s" })
+        : t("questions.all_answered", "Every question here is answered.")}</span>
+      <button id="ask-again">${t("questions.again", "Ask them all again")}</button>
+      <span id="again-said" class="muted"></span>
+    </div>`;
+
+  if (!rows.length) {
+    app().innerHTML = again + `<p class="center">${t("questions.none", "Nothing pending.")}</p>`;
+    wireAskAgain(period);
+    return;
+  }
+
+  app().innerHTML = again + rows.map(q => `
+    <div class="q" data-n="${q.number}">
+      ${dayWindow(q.date, q.day, q.raw)}
+      <p class="ask">${esc(q.review || "")}</p>
+      ${(q.candidates || []).map(c =>
+        `<button data-group="${esc(c)}">${esc(c)}</button>`).join(" ")}
+      <button data-prompt="1">${t("common.other", "Other…")}</button>
+      <span class="said muted"></span>
+    </div>`).join("");
+
+  wireAskAgain(period);
+
+  scrollDays(app());
+
+  app().querySelectorAll(".q button").forEach(btn => {
+    btn.onclick = async () => {
+      const box = btn.closest(".q");
+      const number = Number(box.dataset.n);
+      if (btn.dataset.prompt) {
+        return inlineInput(btn, t("common.group_enter", "group name, then Enter"),
+                           v => meantGroup(v, period, box.querySelector(".said"),
+                                           g => answer(box, number, g, true)));
+      }
+      answer(box, number, btn.dataset.group, false);
+    };
+  });
+
+  async function answer(box, number, group, isNew) {
+    if (!group) return;
+    try {
+      await call(unlocked(period,
+        { action: "answer", period, number, group, new: isNew }));
+      await viewQuestions(period);
+    } catch (e) {
+      const said = box.querySelector(".said") || box;
+      said.className = "said err";
+      said.textContent = closedMsg(e, period);
+    }
+  }
+}
+
+async function prepImage(file) {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bmp.width * scale);
+  canvas.height = Math.round(bmp.height * scale);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = img.data;
+  let lum = 0;
+  for (let i = 0; i < d.length; i += 40) lum += 0.3 * d[i] + 0.6 * d[i + 1] + 0.1 * d[i + 2];
+  if (lum / (d.length / 40) < 110) {
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = 255 - d[i]; d[i + 1] = 255 - d[i + 1]; d[i + 2] = 255 - d[i + 2];
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
+async function viewAdd() {
+  const options = PERIODS.map(p =>
+    `<option value="${p.month}">${monthLabel(p.month)}</option>`).join("");
+  const household = HOUSEHOLD === "en" ? "" : ".household_" + HOUSEHOLD;
+
+  app().innerHTML = `
+    <div class="add-row">
+      <label>${t("add.to", "Add to")} <select id="target">
+        <option value="" selected>${t("add.new_month", "— new month (the notes carry a salary line) —")}</option>
+        ${options}
+      </select></label>
+      <label title="${esc(t("add.replace.title", `Repair: overwrite the stored copy of this period even though it
+        looks fuller - a corrupted copy is by construction fuller than the clean file.
+        Only with '— new month —' selected.`))}">
+        <input type="checkbox" id="replace"> ${t("add.replace", "replace stored copy")}</label>
+      <button id="send">${t("common.add", "Add")}</button>
+      <label class="shotlbl">${t("add.or", "or")} <input type="file" id="shots" accept="image/*" multiple hidden>
+        <button id="pick-shots">${t("add.choose", "Choose screenshots…")}</button>
+        <span id="shots-chosen" class="muted">${t("add.none_chosen", "No screenshots chosen")}</span>
+      </label><button id="read">${t("add.read", "Read screenshot(s)")}</button>
+      <span id="said"></span>
+      <p class="muted">${th("add.help" + household, `Paste the notes exactly as written - dates, the daily
+        <code>Left:</code> lines, everything. Days already present are replaced
+        rather than doubled, so re-pasting an overlapping screenshot is safe.
+        <b>Adding a month a week at a time: copy the whole note from its very
+        first line each time and leave this on "new month".</b> The salary line
+        at the top is what tells the app which month it is, and the fuller copy
+        simply replaces the stored one. Pick a month by name only when you are
+        pasting the new days alone, without that opening. Several months in one
+        paste? End each with a line of <code>######</code> before the next salary,
+        or they run together as one.`)}</p>
+    </div>
+    <textarea id="notes" placeholder="${t("add.placeholder" + household, "12.01&#10;26 bus&#10;180 soup&#10;26 bus&#10;Left: purse 2.9, account 61110")}"></textarea>
+  `;
+
+  document.getElementById("pick-shots").onclick = () => document.getElementById("shots").click();
+  document.getElementById("shots").onchange = showChosen;
+
+  document.getElementById("read").onclick = async () => {
+    const files = document.getElementById("shots").files;
+    const said = document.getElementById("said");
+    const box = document.getElementById("notes");
+    if (!files.length) {
+      said.className = "err";
+      said.textContent = t("add.pick_first", "Pick screenshot(s) first.");
+      return;
+    }
+    for (let i = 0; i < files.length; i++) {
+      said.className = "muted";
+      said.textContent = t("add.reading", "Reading {i} of {n}…", { i: i + 1, n: files.length });
+      try {
+        const text = (await call({ action: "ocr", image: await prepImage(files[i]) })).text;
+        box.value = (box.value.trim() ? box.value.trim() + "\n\n" : "") + text.trim() + "\n";
+      } catch (e) { said.className = "err"; said.textContent = e.message || e; return; }
+    }
+    said.className = "ok";
+    said.textContent = t("add.read_done", "Read {n} screenshot(s) - REVIEW the text below, then Add.",
+                         { n: files.length });
+  };
+
+  document.getElementById("send").onclick = async () => {
+    const text = document.getElementById("notes").value;
+    const period = document.getElementById("target").value;
+    const said = document.getElementById("said");
+    if (!text.trim()) {
+      said.className = "err";
+      said.textContent = t("add.nothing", "Nothing to add.");
+      return;
+    }
+    said.className = "muted"; said.textContent = t("add.adding", "Adding…");
+    try {
+      const body = { action: "import", text, year: new Date().getFullYear() };
+      if (period) body.period = period;
+      else if (document.getElementById("replace").checked) body.replace = true;
+      if (UNLOCKED.size) body.unlocked = [...UNLOCKED];
+      const r = await call(period ? unlocked(period, body) : body);
+      const outcome = x => `${x.said || x.outcome} ${spanLabel(x.span)}`;
+      said.className = "ok";
+      said.textContent = Array.isArray(r)
+        ? r.map(outcome).join("; ")
+        : t("add.result", "{month}: {before} → {after} days{next}", {
+            month: monthLabel(r.month), before: r.days_before, after: r.days_after,
+            next: r.carried ? t("add.result.next", " (next month: {list})",
+                                { list: r.carried.map(outcome).join("; ") }) : "",
+          });
+      document.getElementById("notes").value = "";
+      PERIODS = await call({ action: "periods" });
+      fillPeriods();
+      if (VIEW !== "add") render();
+      else refreshMark(document.getElementById("period").value);
+    } catch (e) {
+      said.className = "err";
+      said.textContent = isClosed(e, /read-only/)
+        ? t("add.closed", "{error} - or open that month and press \"Unlock this month\" first.",
+            { error: e.message })
+        : e.message || String(e);
+    }
+  };
+}
+
+function showChosen() {
+  const shots = document.getElementById("shots");
+  const line = document.getElementById("shots-chosen");
+  if (!shots || !line) return;
+  const n = shots.files ? shots.files.length : 0;
+  line.textContent = n
+    ? t("add.chosen", "{n} screenshot(s) chosen", { n })
+    : t("add.none_chosen", "No screenshots chosen");
+}
+
+let COMPARE_PICK = null;
+
+function splitNames(text) {
+  const lines = text.split("\n");
+  const at = lines.length ? lines[0].search(/\S/) : -1;
+  if (at <= 0) return `<pre>${esc(text)}</pre>`;
+  const whole = l => l.length > at && l.slice(0, at).trimEnd().length > at - 2;
+  const names = lines.map(l => (whole(l) ? l : l.slice(0, at)).replace(/\s+$/, "")).join("\n");
+  const figs = lines.map(l => (whole(l) ? "" : l.slice(at))).join("\n");
+  return `<div class="cmp"><pre class="names">\n${esc(names)}</pre>`
+       + `<div class="figs"><pre>\n${esc(figs)}</pre></div></div>`;
+}
+
+let LAST = null;
+
+async function viewCompare(periods) {
+  LAST = null;
+  if (periods.length < 2) {
+    app().innerHTML = `<p class="center">${t("compare.need_two", "Two months are needed to compare.")}</p>`;
+    return;
+  }
+  if (!COMPARE_PICK) {
+    const real = periods.filter(p => p.days >= 5);
+    COMPARE_PICK = new Set((real.length >= 2 ? real : periods).slice(-2).map(p => p.identity));
+  }
+  const years = [...new Set(periods.map(p => p.year).filter(Boolean))].sort();
+
+  app().innerHTML = `
+    <div class="chooser">
+      <p class="muted">${t("compare.tick", "Tick the months to compare.")}</p>
+      ${periods.map(p => `
+        <label><input type="checkbox" value="${esc(p.identity)}"
+          ${COMPARE_PICK.has(p.identity) ? "checked" : ""}>
+          ${esc(monthLabel(p.month, p.year))}
+          <span class="muted">${esc(spanLabel(p.span))}</span></label>`).join("")}
+      <button class="go" id="do-compare">${t("compare.run", "Compare")}</button>
+      <button class="go" id="print-compare" disabled
+        title="${esc(t("compare.print.title", "The table as it stands, laid out for A4"))}">${t("common.print", "Print…")}</button>
+      <button class="go" id="do-average"
+        title="${esc(t("compare.average.title", "The average of exactly the months ticked - untick a month still being written"))}">${t("compare.average", "Average")}</button>
+      ${years.length ? `<div class="years"><span class="lbl muted">${t("compare.average_year", "Average a year:")}</span>
+        ${years.map(y => `<button data-year="${y}">${y}</button>`).join("")}</div>` : ""}
+      <span id="compare-said" class="muted"></span>
+    </div>
+    <div id="compare-out"></div>`;
+
+  const boxes = [...app().querySelectorAll(".chooser input")];
+  boxes.forEach(b => {
+    b.onchange = () => {
+      b.checked ? COMPARE_PICK.add(b.value) : COMPARE_PICK.delete(b.value);
+    };
+  });
+
+  const run = async (average) => {
+    const months = boxes.filter(b => b.checked).map(b => b.value);
+    const said = document.getElementById("compare-said");
+    const out = document.getElementById("compare-out");
+    if (months.length < (average ? 1 : 2)) {
+      said.className = "err";
+      said.textContent = average
+        ? t("compare.no_months", "That year has no months yet.")
+        : t("compare.tick_two", "Tick at least two.");
+      return;
+    }
+    said.className = "muted";
+    said.textContent = "";
+    try {
+      const text = await call({ action: "compare", periods: months, average: !!average });
+      if (!out.isConnected) return;
+      LAST = { months, average: !!average };
+      out.innerHTML = splitNames(text);
+      document.getElementById("print-compare").disabled = false;
+    } catch (e) {
+      if (out.isConnected) fail(e);
+    }
+  };
+  document.getElementById("do-compare").onclick = () => run(false);
+  document.getElementById("print-compare").onclick = ev =>
+    comparePrintPopup(ev.currentTarget);
+  document.getElementById("do-average").onclick = () => run(true);
+
+  app().querySelectorAll(".years button").forEach(btn => {
+    btn.onclick = () => {
+      const y = Number(btn.dataset.year);
+      const mine = periods.filter(p => p.year === y);
+      const real = mine.filter(p => p.days >= 5);
+      const pick = new Set((real.length ? real : mine).map(p => p.identity));
+      COMPARE_PICK = pick;
+      boxes.forEach(b => (b.checked = pick.has(b.value)));
+      run(true);
+    };
+  });
+
+  if (COMPARE_PICK.size >= 2) run(false);
+}
+
+function wireAskAgain(period) {
+  const btn = document.getElementById("ask-again");
+  const said = document.getElementById("again-said");
+  if (!btn) return;
+
+  const ask = () => {
+    btn.hidden = true;
+    said.className = "muted";
+    said.innerHTML = `${t("questions.again.sure", "This forgets your answers for this month - the notes stay.")}
+      <button id="again-yes">${t("questions.again.yes", "Yes, ask them again")}</button>
+      <button id="again-no">${t("questions.again.no", "No, keep them")}</button>`;
+    document.getElementById("again-no").onclick = () => {
+      btn.hidden = false;
+      said.className = "muted";
+      said.textContent = "";
+    };
+    document.getElementById("again-yes").onclick = go;
+  };
+
+  const go = async () => {
+    said.innerHTML = "";
+    said.textContent = t("questions.forgetting", "Forgetting…");
+    try {
+      const r = await call(unlocked(period, {
+        action: "reset", scope: "answers", period, confirm: "RESET",
+      }));
+      await viewQuestions(period);
+      const back = document.getElementById("again-said");
+      if (back) {
+        back.className = "ok";
+        back.textContent = t("questions.again.done",
+          "{answers} answer(s) forgotten - {questions} question(s) again.",
+          { answers: r.wiped.answers, questions: r.questions });
+      }
+    } catch (e) {
+      btn.hidden = false;
+      said.className = "err";
+      said.textContent = closedMsg(e, period);
+    }
+  };
+
+  btn.onclick = ask;
+}
+
+function fail(e) {
+  app().innerHTML = `<p class="err">${esc(e.message || e)}</p>`;
+  console.error(e);
+}
+
+let PERIODS = [];
+let VIEW = "month";
+
+function fillPeriods() {
+  const sel = document.getElementById("period");
+  const keep = sel.value;
+  sel.innerHTML = PERIODS.map(p =>
+    `<option value="${esc(p.month)}" title="${esc(spanLabel(p.span))}">${esc(monthLabel(p.month, p.year))}</option>`).join("");
+  const stored = new Set([...sel.options].map(o => o.value));
+  const onScreen = stored.has(keep) ? keep : null;
+  const pick = onScreen
+    || (sel.options.length ? sel.options[sel.options.length - 1].value : "");
+  if (pick) sel.value = pick;
+}
+
+function remember(key, value) {
+  try { localStorage.setItem("budget-" + key, value); } catch (e) { }
+}
+function remembered(key) {
+  try { return localStorage.getItem("budget-" + key); } catch (e) { return null; }
+}
+
+let DRAWING = null;
+let DRAW_AGAIN = false;
+
+function render() {
+  if (DRAWING) {
+    DRAW_AGAIN = true;
+    return DRAWING;
+  }
+  DRAWING = (async () => {
+    try {
+      do {
+        DRAW_AGAIN = false;
+        await drawView();
+      } while (DRAW_AGAIN);
+    } finally {
+      DRAWING = null;
+    }
+  })();
+  return DRAWING;
+}
+
+async function drawView() {
+  const period = document.getElementById("period").value;
+  const here = PERIODS.find(p => p.month === period);
+  document.title = here
+    ? t("app.title_month", "Budget — {month}", { month: monthLabel(here.month, here.year) })
+    : t("app.name", "Budget");
+  document.getElementById("period").style.display = VIEW === "add" ? "none" : "";
+  try {
+    if (!PERIODS.length && VIEW !== "add") return await viewEmpty();
+    if (VIEW === "month") await viewMonth(period);
+    else if (VIEW === "add") { await viewAdd(); await refreshMark(period); }
+    else if (VIEW === "questions") await viewQuestions(period);
+    else { await viewCompare(PERIODS); await refreshMark(period); }
+  } catch (e) { fail(e); }
+}
+
+async function boot() {
+  showLang(startLang());
+  initOptions(render);
+
+  try {
+    PERIODS = await call({ action: "periods" });
+  } catch (e) {
+    return fail(e);
+  }
+
+  const lastView = remembered("view");
+  if (lastView && lastView !== "add"
+      && document.querySelector(`nav button[data-view="${lastView}"]`)) {
+    VIEW = lastView;
+  }
+
+  fillPeriods();
+  document.getElementById("period").onchange = () => render();
+
+  document.querySelectorAll("nav button[data-view]").forEach(b => {
+    b.onclick = () => {
+      VIEW = b.dataset.view;
+      remember("view", VIEW);
+      document.querySelectorAll("nav button[data-view]")
+        .forEach(o => o.classList.toggle("on", o === b));
+      render();
+    };
+  });
+  document.querySelectorAll("nav button[data-view]").forEach(o =>
+    o.classList.toggle("on", o.dataset.view === VIEW));
+  document.getElementById("signout").onclick = signOut;
+
+  render();
+}
+
+boot();
+</script>
+</body>
+</html>

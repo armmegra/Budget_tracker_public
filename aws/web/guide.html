@@ -1,0 +1,264 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Budget tracker — the guide</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0 auto; max-width: 42em; padding: 24px 20px 60px;
+    background: #ffffff; color: #1c1c1e;
+    font: 11pt/1.62 "Segoe UI", -apple-system, system-ui, sans-serif;
+  }
+  h1 { font-size: 22pt; margin: 0 0 4px; letter-spacing: -.01em; }
+  h2 {
+    font-size: 14pt; margin: 30px 0 10px; padding-bottom: 5px;
+    border-bottom: 1px solid #e0e0e4; break-after: avoid;
+  }
+  h3 { font-size: 11.5pt; margin: 20px 0 6px; break-after: avoid; }
+  p, li { margin: 0 0 9px; }
+  ul, ol { margin: 0 0 12px; padding-left: 22px; }
+  li { margin-bottom: 5px; }
+  a { color: #2f6f4e; text-decoration: none; border-bottom: 1px solid #e0e0e4; }
+  b { color: #1c1c1e; }
+  code {
+    font-family: "Cascadia Mono", Consolas, monospace; font-size: .88em;
+    color: #8a3b2f; background: #f6f6f4; padding: 1px 4px; border-radius: 3px;
+  }
+  pre {
+    background: #f6f6f4; border: 1px solid #e0e0e4; border-radius: 5px;
+    padding: 11px 13px; overflow-x: auto; break-inside: avoid; margin: 0 0 14px;
+  }
+  pre code { background: none; padding: 0; color: #1c1c1e; font-size: .84em; line-height: 1.5; }
+  hr { border: 0; border-top: 1px solid #e0e0e4; margin: 26px 0; }
+  table {
+    border-collapse: collapse; width: 100%; margin: 0 0 14px;
+    font-size: .92em; break-inside: avoid;
+  }
+  th, td { text-align: left; vertical-align: top; padding: 6px 10px 6px 0; border-bottom: 1px solid #e0e0e4; }
+  th { color: #5c5c62; font-weight: 600; }
+</style>
+<h1 id="budget-tracker--the-guide">Budget tracker — the guide</h1>
+<p>For someone opening this for the first time who has never set up groups or limits before. It assumes nothing except that you write down what you spend.</p>
+<p>You do not have to read it in order. To get going, read <b>The idea</b> and <b>Writing a day</b>, add a month, and come back when a word on the screen stops making sense.</p>
+<ul><li><a href="#the-idea">The idea</a></li><li><a href="#signing-in">Signing in</a> — one account, and what protects it</li><li><a href="#writing-a-day">Writing a day</a> — the only format you have to learn</li><li><a href="#adding-a-month">Adding a month</a></li><li><a href="#questions">Questions</a> — why it asks instead of guessing, and how to teach it a word</li><li><a href="#reading-the-month">Reading the month</a></li><li><a href="#groups">Groups</a> — <b>the one idea worth understanding</b></li><li><a href="#tiers-and-the-two-totals">Tiers, and the two Totals</a></li><li><a href="#limits">Limits</a></li><li><a href="#setting-up-your-own-from-scratch">Setting up your own, from scratch</a></li><li><a href="#the-left-line">The Left line</a></li><li><a href="#correcting-a-figure">Correcting a figure</a></li><li><a href="#comparing-months-and-printing">Comparing months, and printing</a></li><li><a href="#backups">Backups</a></li><li><a href="#the-gear-menu">The gear menu</a></li><li><a href="#where-your-data-lives">Where your data lives</a></li><li><a href="#when-something-looks-wrong">When something looks wrong</a></li></ul>
+<hr>
+<h2 id="the-idea">The idea</h2>
+<p>Most budget apps ask you to categorise a purchase at the moment you make it. This one does not. You keep writing notes the way you already do — a date, a list of amounts, a word or two each — and paste them in when it suits you. The app reads them, sorts them into groups, adds them up, and asks you about the handful of lines it could not place confidently.</p>
+<p>So the loop is:</p>
+<pre><code>    write notes on your phone  →  paste them in  →  answer a few questions
+                               →  read the month</code></pre>
+<p><b>Amounts are shown in thousands.</b> A bar reading <code>12.0</code> means 12,000 of whatever currency you write in. The app never converts anything; it only adds up the numbers you wrote.</p>
+<hr>
+<h2 id="signing-in">Signing in</h2>
+<p>The app opens on a sign-in page hosted by AWS Cognito. There is <b>one account</b> — yours — and sign-up is switched off, so nobody can create a second one.</p>
+<p><b>Signing in takes a second factor</b>, and the pool a Terraform instance builds demands one: an authenticator app on your phone, enrolled from a QR code the login page shows you the first time. A password can be guessed, phished or reused; a six-digit code that changes every thirty seconds and lives on a device in your pocket cannot be any of those things. It costs nothing — TOTP is free, and it is SMS that bills per message.</p>
+<p>If your pool was built by hand rather than by Terraform, check it: Cognito → your user pool → <b>Sign-in</b> (or <i>Authentication methods</i>) → MFA. A pool created through the console's quick flow has MFA <b>off</b>, and a pool with MFA off will not let you set a preference on a user at all — it answers <i>"User does not have delivery config set to turn on SOFTWARE_TOKEN_MFA"</i>. Set the pool to <b>Required</b> with <b>Authenticator apps</b> ticked, and the user prompt appears at the next sign-in.</p>
+<p><b>Nothing in the application is reachable without it.</b> The check does not happen inside the app — it happens in front of it, at the API gateway, which refuses any request that does not carry a valid token and never passes it on. There is no page, no figure and no note behind that door for an unauthenticated request to reach.</p>
+<p><b>Sign out</b> is at the top right. Your session expires on its own too, so a window left open on a machine you walked away from stops working.</p>
+<h3 id="if-you-lose-access">If you lose access</h3>
+<p>There is no "forgotten password" link, on purpose. The way back in is the AWS console for the account this instance belongs to: reset the password on the Cognito user, or register a new MFA device. That is deliberate — the recovery path is your cloud account, protected by its own MFA, rather than a set of questions with guessable answers.</p>
+<p><b>Your notes are never involved in any of this.</b> They live in a database that knows nothing about passwords.</p>
+<hr>
+<h2 id="writing-a-day">Writing a day</h2>
+<p>This is the only format you have to learn, and it is deliberately close to how people already scribble.</p>
+<pre><code>10.01
++ 57 300
+Left: 6.8, 61240
+
+11.01
+2340 grocer
+135 eggs and cheese
+160 taxi
+Left: 4.3, 58605</code></pre>
+<p>Line by line:</p>
+<table><thead><tr><th>What you write</th><th>What it means</th></tr></thead><tbody><tr><td><code>11.01</code></td><td>a date, <code>dd.mm</code>. It starts a new day.</td></tr><tr><td><code>2340 grocer</code></td><td>an amount, then what it was. The words decide the group.</td></tr><tr><td><code>160 taxi</code></td><td>a fare with its name on it, which is the version that needs no thought.</td></tr><tr><td><code>45</code></td><td>an amount and nothing else. Still treated as travel — see below.</td></tr><tr><td><code>+ 57 300</code></td><td>a <b>plus</b> makes it money coming in, not going out.</td></tr><tr><td><code>Left: …</code></td><td>optional. What you have left at the end of the day, in an order you decide. See <a href="#the-left-line">The Left line</a>.</td></tr><tr><td>a blank line</td><td>a break between separate outings in the same day. <b>This matters.</b></td></tr></tbody></table>
+<p>Three things worth knowing early:</p>
+<p><b>Spaces in numbers are fine.</b> <code>57 300</code> and <code>57300</code> are the same. Write them however you write them.</p>
+<p><b>A blank line separates outings.</b> If you go to the cinema in the afternoon and out to dinner in the evening, put a blank line between them. The app uses those breaks to decide which taxi belongs to which outing — without them, the taxi home from dinner can be charged to the cinema.</p>
+<p><b>Say what a fare was, if you can be bothered.</b> <code>160 taxi</code>, <code>26 bus</code>, <code>850 fuel</code> — a named fare lands where you meant it to and costs you nothing later.</p>
+<p>A line that is only an amount still works: it is treated as travel belonging to whatever outing it sits in, which is the habit most people already have. But if it sits in no outing, nothing on the line says where you went, and the app has to ask. Writing the word is how you avoid the question.</p>
+<h3 id="money-coming-back">Money coming back</h3>
+<p>Put a <code>+</code> in front. A refund, a reimbursement, a repayment. It subtracts from whatever group it lands in, so a refunded purchase nets out to nothing rather than being counted twice.</p>
+<pre><code>+ 740 boots returned</code></pre>
+<p>The app also matches a refund to the purchase it reverses <b>by amount</b>, so a credit that names only the shop it came back through still lands in the group that carried the thing you bought.</p>
+<hr>
+<h2 id="adding-a-month">Adding a month</h2>
+<p><b>Add notes</b>, paste, <b>Add</b>.</p>
+<p>Two things on that screen are worth understanding.</p>
+<p><b>"— new month —" versus picking a month by name.</b> The app works out which month a paste belongs to from the income line that opens it — the salary, or whatever regularly starts your month. If your paste has that opening line, leave the box on "new month" and it sorts itself out. Pick a month by name only when you are pasting a few extra days on their own, with no opening line to identify them.</p>
+<p><b>Re-pasting is safe.</b> If a day is already stored, the fuller copy replaces the shorter one. It is never doubled. So the easy habit is: each time you want to catch up, copy the whole note from its very first line and paste the lot.</p>
+<h3 id="where-one-month-ends-and-the-next-begins">Where one month ends and the next begins</h3>
+<p><b>A month begins at its income line</b> — the salary, or whatever regularly opens yours. That line is how the app tells one month from another, and it is why a paste that has it needs nothing else.</p>
+<p><b>A month needs no end mark</b>, as long as you paste one month at a time. It ends where the notes stop.</p>
+<p><b>Pasting several months at once is the one case that needs a mark.</b> Put a line of at least three hashes between them, on a line of its own:</p>
+<pre><code>27.01
+310 fruit
+Left: 1, 32500
+
+####
+
+10.02
++ 58 650</code></pre>
+<p>Without it the two run together into a single enormous month. The app does not start a new one when it meets a second income line, deliberately: a second salary line mid-month is a real thing — a bonus, a repayment, a part payment — and guessing that it means "new month" would split months that should not be split. The hashes are you saying it, and nothing else does.</p>
+<p>Any number of hashes from three up works; the length carries no meaning. If you copy your notes out of an app that already writes a divider between months, that divider probably already is one.</p>
+<p><b>A month is named for where most of its days fall.</b> If yours run from one payday to the next, one straddles two calendar months — the 25th of May to the 24th of June, say. Twenty-four of those days are in June, so the app calls it June, which is what you would call it too. You never name a month yourself; you only ever pick one that is already there.</p>
+<h3 id="from-a-screenshot">From a screenshot</h3>
+<p>If your notes live in a phone app, photograph them and use <b>Read screenshot(s)</b> instead of typing. The image goes to Amazon Textract, which reads the text and sends it back into the box for you to check before it is added — <b>always check it</b>, because OCR misreads digits occasionally and this is money.</p>
+<p>The picture is used for that one call and is not kept.</p>
+<hr>
+<h2 id="questions">Questions</h2>
+<p>The app never silently guesses. When a line could reasonably belong to two groups, or to none it knows, it asks — and until you answer, that line is not counted anywhere.</p>
+<p>Each question shows the day its line was written on: the date, then that day's lines exactly as you wrote them — the blank lines, the credits and the Left line too — with the one asked about in bold, in a box that opens on it and scrolls through the rest of the day. It says what the doubt is, and offers the answers it thinks likely. The buttons are shortcuts, not a menu: <b>Other…</b> lets you type any group name, and if you type a name that does not exist yet, it offers to start a new group with it. Pressing <b>Enter</b> confirms what you typed.</p>
+<p>The commonest kinds:</p>
+<ul><li><b>"no rule matched".</b> Nothing in the line matches a group the app knows. It picks the word that looks most like a name and offers it as a new group, which is one click rather than typing.</li><li><b>"a fare with nothing naming it".</b> A bare amount that belongs to no outing. Only you know where you went.</li><li><b>"alcohol — Food, or a celebration of its own?"</b> The line genuinely reads both ways, and which one you mean changes the month.</li><li><b>"this line names X and Y — which was it?"</b> Two groups' words on one line, and the app will not pick for you. The first match stays the default, so an unanswered month reads exactly as it did.</li><li><b>A word hiding inside another word.</b> The app matches <code>phone</code> to book your phone bill — and <code>phone</code> also sits inside <code>headphones</code>, which is not a phone bill at all. When a rule only matches in the middle of a longer word, the app will not book it. It asks <i>"headphones is not phone — which group is this?"</i> and offers <code>Headphones</code> first, as a group of its own.</li></ul>
+<p><b>Your answers are remembered per month and per occurrence.</b> Answering "wine → drinks" in July does not silently decide the same line in August; the same words can mean different things in different months.</p>
+<p><b>An answer outranks every rule, including rules written after it.</b> When the app later learns a word that would place a line you had already answered, your answer still decides that line. The same holds for a figure you moved. So a month keeps the picture you gave it, however the rules change.</p>
+<p><b>"Ask them all again"</b> forgets this month's answers and puts every question back. The figures return to what the rules alone make of the notes.</p>
+<h3 id="teaching-it-a-word">Teaching it a word</h3>
+<p>An answer settles one line in one month. When the same shop comes round next month, it is asked about again, because which words belong to which group is something the app knows only from the words it was built with, and your shops are not those.</p>
+<p>So you can teach it one. <b>Gear → Words you teach…</b> takes a word and the group it belongs to. From then on every line carrying that word books straight there and is not asked about. Teaching a word can only remove questions; it never adds one.</p>
+<p>A few things worth knowing:</p>
+<ul><li><b>It asks which months first</b>, the same as the group editors do: every month, this month only, or this month and every later one. A month that is already closed is protected, so teaching a word cannot quietly rewrite a month you have printed.</li><li><b>What you answer or move by hand still wins.</b> A taught word is about every line carrying it, an answer is about one line, and the particular beats the general.</li><li><b>Two words fitting one line: the longer one decides.</b> Teach <code>bakery</code> for Food and <code>bakery card</code> for the card, and a bakery card line takes the second.</li><li><b>A word, not a fragment.</b> <code>bakery</code> does not match inside <code>bakerycorp</code>, and you can teach two words together, such as <code>garden centre</code>, which then match with any spacing between them.</li><li><b>Choose the word narrowly.</b> A word is matched anywhere in the line, so a broad one reaches lines you did not mean. Teaching <code>coffee</code> for Food also takes a coffee machine and a coffee table, which are not food at all. A shop's name is a good word; a thing's name is usually not.</li><li><b>It reaches money coming back too.</b> A credit carrying the word books to that group like anything else.</li><li><b>Forget takes one back</b>, and its lines go back to being read by the rules, or asked about.</li></ul>
+<p>Words travel in a backup with everything else, so an instance restored from another knows what you taught it.</p>
+<hr>
+<h2 id="reading-the-month">Reading the month</h2>
+<p>Four things are on this page.</p>
+<p><b>The bars</b> are your major groups, one per row, in a fixed order so the page looks the same every month. A group that had no spending shows a dash rather than vanishing — its absence is information too.</p>
+<ul><li><b>Green</b> is what you spent.</li><li><b>Yellow</b> beside the green is the room left under that group's limit.</li><li><b>Red</b> means you went past the limit, and the red section is the overspend.</li><li><b>Blue</b> means the group has no limit at all.</li><li><b>Yellow with a plus</b> is income — money that came in, reducing the total it sits in.</li><li>The two bottom rows, <b>Totally saved</b> and <b>Totally overspent</b>, add up all the yellow and all the red. They are readings, not groups.</li></ul>
+<p><b>The limits box</b> on the right is your monthly plan, in the order you choose.</p>
+<p><b>The two Totals</b> are explained in the next section.</p>
+<p><b>The minor group list</b> below them shows every individual amount, so you can see what any figure is made of. That is the list's whole job: not a sample of what you spent but <b>all of it, gathered by group</b>.</p>
+<hr>
+<h2 id="groups">Groups</h2>
+<p>This is the one idea worth understanding properly. Everything else follows from it.</p>
+<p>There are <b>two levels</b>.</p>
+<p>A <b>minor group</b> is where a single line lands. <code>2340 grocer</code> lands in a minor group; <code>850 fuel</code> lands in a different one.</p>
+<p>A <b>major group</b> is what several minor groups roll up into. Majors are what you see on the chart, what limits watch, and what the Totals are made of.</p>
+<pre><code>    Transport           ← major: one bar, one limit, one number (31.4)
+      bus       6200    ← minor: a month of bus fares, added up
+      train    17400    ← minor: three train tickets
+      fuel      7800    ← minor: two fills of the tank</code></pre>
+<p><b>Why bother with two levels?</b> Because you want two different things at once. You want <i>one</i> number for getting about when you look at the month, and you want to keep the buses, the trains and the fuel apart when you look closer. One level would force you to choose. So: minors keep the detail, the major adds them up.</p>
+<p>You do not have to use both levels. A major group with a single minor under it is perfectly normal — most of the shipped ones are.</p>
+<h3 id="where-the-editors-are">Where the editors are</h3>
+<p>There is one <b>⋯</b> button beside each thing it edits, and clicking the word <b>Left</b> on the closing line opens the fourth:</p>
+<table><thead><tr><th>Button</th><th>Where it is</th><th>What it edits</th></tr></thead><tbody><tr><td><b>⋯</b></td><td>above the chart, by "major groups"</td><td>major groups</td></tr><tr><td><b>⋯</b></td><td>inside the Limits box, before the word</td><td>limits</td></tr><tr><td><b>⋯</b></td><td>over the minor list, on the right</td><td>minor groups</td></tr><tr><td><b>Left</b></td><td>the closing line at the foot of the month</td><td>the Left line</td></tr></tbody></table>
+<p>Each asks <i>which months should this apply to</i> before it opens, which is explained under <a href="#setting-up-your-own-from-scratch">Setting up your own</a>.</p>
+<h4 id="minor-groups">Minor groups</h4>
+<p>Every one shows the major it lives under. <b>Route to…</b> moves it somewhere else — this is how you reshape things: decide that fuel should not count as transport, and route <code>fuel</code> under a <code>Car</code> major instead. Old months recompute at once.</p>
+<p>Several minors may share one major, which is exactly how a dozen scattered lines become a single figure. <b>Add</b> asks for a name and which major it belongs under, and refuses without both.</p>
+<h4 id="major-groups">Major groups</h4>
+<p><b>Rename</b> and <b>Remove</b>, and an <b>Add</b> that asks for a name, a <a href="#tiers-and-the-two-totals">tier</a> and — if you want one now — a limit. <b>Remove</b> works on any major. If minor groups live under it, it first asks which group they move to, offering only groups counted the same way, so none of their money is lost; one group that spending can go to always stays. <b>Rename</b> also renames the minor that shares the major's name — <code>Rent</code> inside <code>Rent</code> — and a minor may take its own major's name, but no other group's.</p>
+<p><b>Names are labels, and permanent identities are underneath.</b> This is why you can rename a group and every old month, every stored answer and every rule still works. Only the word on screen changes.</p>
+<h3 id="the-groups-it-comes-with-are-only-a-starting-point">The groups it comes with are only a starting point</h3>
+<p>The app ships with a working set of groups so the first month you paste has somewhere to go, rather than facing you with an empty page. <b>None of it is meant to be yours.</b> See <a href="#setting-up-your-own-from-scratch">Setting up your own</a>.</p>
+<hr>
+<h2 id="tiers-and-the-two-totals">Tiers, and the two Totals</h2>
+<p>Every major group has a <b>tier</b>, and the tier decides how it reaches the month's total. There are four.</p>
+<table><thead><tr><th>Tier</th><th>What it means</th><th>Where it lands</th></tr></thead><tbody><tr><td><b>necessary</b></td><td>the ordinary running of your life</td><td>the <b>first Total</b></td></tr><tr><td><b>frequent</b></td><td>real spending, but not every month</td><td>added <i>after</i> the first Total</td></tr><tr><td><b>occasional</b></td><td>one-offs — a trip, a repair, a gift</td><td>added <i>after</i> the first Total</td></tr><tr><td><b>excluded</b></td><td>recorded, but counted in nothing</td><td>neither Total</td></tr></tbody></table>
+<p>That is where the two Totals on the month page come from:</p>
+<pre><code>    Total: 30.3                                               ← "necessary" only
+    Total: 30.3 + Garden 1.2 + Books 3.0 + Picture frame 0.4 : 34.9</code></pre>
+<p><b>Why two?</b> Because "what does my life cost to run?" and "what did I actually spend?" are different questions, and mixing them makes both useless. A month with a holiday in it is not evidence that your groceries got more expensive. The first Total is the comparable one, month to month. The second is the truth about your bank balance.</p>
+<p><b>What "excluded" is for.</b> Some lines have to be written down but must not be counted. Cash taken out of a machine is the clearest case: if the withdrawal counted, and then the shopping you did with that cash also counted, you would have spent it twice. Money moved to savings is the same — recorded, not spent.</p>
+<h3 id="choosing-what-the-second-total-counts">Choosing what the second Total counts</h3>
+<p>Click the word <b>Total</b> on the second line.</p>
+<p>Every one-off group appears with a tick. Untick one and it drops out of that Total — it keeps its bar and its detail, because it still happened, but it stops colouring the month. Click the figure itself to enter a different one, for the times when what you spent and what you want the month to carry are not the same. A figure you set is marked, so you can never mistake it for a counted one.</p>
+<p><b>Moving a tick gives up the figure you set.</b> Unticking a group and putting it back says "count this the way the notes do again" — otherwise a group could come back still carrying a figure set for a reason that no longer applied.</p>
+<hr>
+<h2 id="limits">Limits</h2>
+<p>A limit is a monthly number you set for one major group. It changes nothing about how spending is counted — it only draws the yellow and the red, and feeds the two summary rows.</p>
+<p>Each row watches one major group.</p>
+<ul><li><b>Value</b> sets the number, in thousands. <code>20</code> means 20,000.</li><li><b>Rename</b> changes what the box calls it, without renaming the group. Useful when the group is called <code>Transport</code> but you think of that budget as "Getting about".</li><li><b>Watch…</b> points the row at a different group.</li><li><b>Remove</b> takes the limit off, and the group's bar turns blue.</li></ul>
+<p><b>Add a limit</b> starts on <i>Choose a group…</i> and never picks one for you. Choose the group, or type its name: a name that is already a group's puts the limit on that group, and a new name makes a new group carrying the limit. <i>Shown as</i> only names the row in the box; it chooses no group.</p>
+<p>The order of the rows is the order you set them in, and it is meant to be the order you naturally read. A limit you add later joins the end of that order.</p>
+<p><b>Limits are optional.</b> A group with no limit still works perfectly; you just lose the yellow-and-red reading for it.</p>
+<hr>
+<h2 id="setting-up-your-own-from-scratch">Setting up your own, from scratch</h2>
+<p>Here is a way to get from the shipped example to your own life in about ten minutes. The point of doing it in this order is that you never lose data: you reshape the groups first, and only then start adding months.</p>
+<h3 id="1-clear-the-example-if-you-want-a-clean-page">1. Clear the example, if you want a clean page</h3>
+<p>Gear (<b>⚙</b>) → <b>Start over</b> → <i>Everything — months, answers, groups and limits, from scratch</i>. This cannot be undone, so do it before you have anything worth keeping.</p>
+<p>You do not have to. Renaming your way from the shipped set to your own works just as well, and keeps a working example in front of you while you learn.</p>
+<h3 id="2-decide-your-majors-first">2. Decide your majors first</h3>
+<p>Write down, on paper, the headings you want to see when you look at a month — the things you think of as your regular monthly spending. Most people's list looks something like:</p>
+<pre><code>    Food        Home        Transport      Health
+    Eating out  Bills       Clothes        Fun</code></pre>
+<p><b>There is no right number, and the app is not the thing limiting you.</b> The reason to keep the list short is that every extra group is another decision you have to make about every line you write, forever. You can always add one later — and the app will offer to, the first time a line does not fit anywhere.</p>
+<h3 id="3-set-their-tiers">3. Set their tiers</h3>
+<p>Ask of each: <i>does this happen every month, as part of the ordinary running of things?</i> If yes, it is <b>necessary</b>. If it is real but sporadic — clothes, electronics — make it <b>frequent</b>. Leave <b>occasional</b> alone; the app creates those for you when a one-off turns up.</p>
+<h3 id="4-add-minors-only-where-you-want-the-detail">4. Add minors only where you want the detail</h3>
+<p>Under <code>Food</code> you might want <code>market</code> and <code>delivery</code>. Under <code>Bills</code> you probably want one per bill: <code>water</code>, <code>heating</code>, <code>broadband</code>. Under <code>Fun</code> you probably want nothing at all.</p>
+<p>The test: <i>would I ever want to see these separately?</i> If not, do not split it.</p>
+<h3 id="5-put-limits-on-the-ones-you-want-to-watch">5. Put limits on the ones you want to watch</h3>
+<p>Only the groups where a number would actually change your behaviour. A limit on a group you cannot control is just a red bar telling you something you knew.</p>
+<h3 id="6-choose-the-scope-then-edit">6. Choose the scope, then edit</h3>
+<p>Before you change anything, whichever <b>⋯</b> you press asks which months your change applies to.</p>
+<ul><li><b>Every month</b> — the normal choice. Renaming something, or fixing a limit you set wrongly, should apply everywhere.</li><li><b>This month only</b> — when a group genuinely means something different in one month.</li><li><b>This month and all further months</b> — when your life changed. Your rent went up in the spring; the winter months should keep the old figure.</li></ul>
+<p>That last one is the reason this question is asked at all. Without it, raising a limit would quietly rewrite every month you had already looked at.</p>
+<p>When the scope is anything other than "every month", your edits are <b>staged</b> — listed, and applied together when you press Apply — so a half-finished reshaping never lands.</p>
+<h3 id="7-now-paste-your-first-month">7. Now paste your first month</h3>
+<p>And answer the questions. The first month asks the most, because every shop you write is new to it. Nothing is learned from your answers by itself: an answer settles that one line in that one month. What makes later months quieter is <a href="#teaching-it-a-word">teaching it a word</a> for the shops you write often.</p>
+<p><b>A group's name is not a word.</b> Calling a group <code>Road</code> does not teach the app the word <i>road</i>: a line reaches a group through the rules, a word you teach, or your answer. Upper or lower case never matters — once <i>road</i> is taught, <code>ROAD</code> and <code>Road</code> book there too.</p>
+<h3 id="what-the-figures-do-while-you-reshape">What the figures do while you reshape</h3>
+<p>Nothing is recomputed wrongly, because nothing is stored. Every total on the page is worked out from your raw notes each time you look at it. Rename a group, move a minor, change a limit — reload and the figures are simply right. The only things stored are your notes and your answers.</p>
+<hr>
+<h2 id="the-left-line">The Left line</h2>
+<p>Optional, and easy to skip on a first read. It answers a different question from the rest of the app: not <i>what did I spend</i> but <b>what have I got left, right now</b>.</p>
+<p>If you already end each day by writing down where you stand, the app reads that line, keeps it in step as the month goes on, and tells you what today's figures ought to be.</p>
+<p>You write bare numbers in a fixed order, and the app puts the names on:</p>
+<pre><code>    you write            Left: 4.3, 58605
+
+    the app shows        Left: purse 4.3, account 58605</code></pre>
+<p>The order is yours and so are the names. A sensible pair to start from:</p>
+<table><thead><tr><th>Figure</th><th>What it is</th><th>What it is for</th></tr></thead><tbody><tr><td><b>purse</b></td><td>the cash you are actually spending from</td><td>the everyday figure</td></tr><tr><td><b>account</b></td><td>the balance of your bank account</td><td>it should match your banking app; when it does not, a day is missing</td></tr></tbody></table>
+<p>Add more if you keep more: money put aside and not for spending, or an allowance for one kind of spending that refills every week.</p>
+<h3 id="the-kinds-and-why-they-matter">The kinds, and why they matter</h3>
+<p>Each figure has a <b>kind</b>. The kind is not decoration — it is how the app brings a half-written month up to date, so that today's line is right even though you last wrote one on Tuesday.</p>
+<table><thead><tr><th>Kind</th><th>What the app does with it</th></tr></thead><tbody><tr><td><b>card balance</b></td><td>every card payment comes off it</td></tr><tr><td><b>cash in hand</b></td><td>everything else comes off it</td></tr><tr><td><b>weekly purse</b></td><td>refills on a day you choose, and is spent down by groups you choose</td></tr><tr><td><b>carried over</b></td><td>stands unchanged until you write a new figure yourself</td></tr></tbody></table>
+<p>A withdrawal moves money from the card to the cash, which is why those two are one ledger and not two.</p>
+<p>Click the word <b>Left</b> at the foot of the month to open the editor. You can rename each figure, put its name before or after the number, reorder them, add more, or remove the ones you do not keep. <b>Back to the original line</b> puts back the set the app ships with. Like the group editors, it asks which months first: a change for this month only, or this month onward, waits in a list under the editor until you press <b>Apply</b>.</p>
+<p>If you do not write such a line at all, ignore this section — nothing else depends on it.</p>
+<hr>
+<h2 id="correcting-a-figure">Correcting a figure</h2>
+<p>Any amount on the month page can be clicked and moved, not only the ones you were asked about.</p>
+<p>The popup shows the day the figure's line was written on, as a question does — the date, that day's lines as you wrote them, the figure's own line in bold, in a box that scrolls — and offers somewhere to put it. The day is how you tell one <code>26</code> from the next. If you have moved it before, <b>Put it back</b> lifts your move and lets the rules decide again.</p>
+<p>Figures carry a mark saying how they got where they are: one you answered, one you moved, and one the rules placed all look slightly different. Point at one to be told which.</p>
+<p><b>Old months lock themselves.</b> Three months after a month ends it becomes read-only, so a stray click cannot change a figure you have already acted on. If you genuinely need to correct one, the bar at the top of the month unlocks it and says plainly that you may be changing something you already printed. The unlock lapses when you reload — it is not a setting you can leave on by accident.</p>
+<hr>
+<h2 id="comparing-months-and-printing">Comparing months, and printing</h2>
+<p><b>Compare</b> puts months side by side in one table: every group, every month, and an average. Tick the months you want — it opens on the two most recent, which is usually the question. The table scrolls sideways when there are more months than fit.</p>
+<p><b>Average</b> works out the average of exactly the months ticked. The year buttons beside it tick a whole year and average that — but a year in progress ends with a month still being written, and a month one week old drags the year's averages down. Press the year, untick the month you are still in, press <b>Average</b>: the same figures, over the months that are finished. Any set of months works — a quarter, the summer, everything but a holiday month.</p>
+<p><b>Print…</b> produces the month, the whole year, or a comparison, as a Word or text file laid out for paper. A comparison too wide for a page is dealt across as many pages as it needs, and <b>every page repeats the group names down its left edge</b> — reading a total means reading along a row, and a page of bare figures has nothing to read along.</p>
+<hr>
+<h2 id="backups">Backups</h2>
+<p>Gear (<b>⚙</b>) → <b>Download configuration</b> saves everything — months, answers, groups, limits, the ticks and the figures you set — as one file. <b>Restore from a file…</b> reads it back.</p>
+<p>The restore is the most destructive thing the app can do: it replaces every stored month at once. So it asks three times, in order — <i>Are you sure?</i>, then <i>Apply</i>, then a final irreversible <i>Yes</i> — and the last button is dead for a moment so that a double-click cannot carry you through it.</p>
+<p>Two habits worth having:</p>
+<ul><li>Take one before any big reshaping of groups.</li><li>Take one occasionally anyway, and keep it somewhere other than the cloud account this instance lives in.</li></ul>
+<p>A backup is also how you move between instances: download from one, restore into another. It carries your data, not your login. A restore shows every month as it was when you saved it, answers and moves included, even into an app whose rules have grown since.</p>
+<p><b>The file carries the rules too.</b> Your months are notes, and notes become figures only through the rules: which words go to which group, and what the Left line's figures are. So the file holds a copy of the rules this app reads with, and one file restores everything. The phone app puts those rules in place when it restores, so its months read exactly as they do here.</p>
+<p>This app does not. Its rules belong to the code it runs, so a restore here keeps them and uses the file's rules only to compare. When they differ, the message after the restore says so: the months then read by this app's rules, not by the rules of the place the file came from.</p>
+<p>Treat the file as private as your months. It holds your notes, your answers, and now the words your household uses.</p>
+<hr>
+<h2 id="the-gear-menu">The gear menu</h2>
+<p>The <b>⚙</b> button, top right, holds what you set once and rarely touch:</p>
+<ul><li><b>Bar colours and text sizes</b> — every colour on the chart and every type size, dragged live. These live in this browser, not in your data, so they do not travel in a backup.</li><li><b>Backup</b> — covered just above.</li><li><b>Words you teach</b> — the list of words you have taught and the group each one books to, with a Forget beside each. See <a href="#teaching-it-a-word">Teaching it a word</a>.</li><li><b>Start over</b> — wipes this month, this month onward, or everything. It asks twice and cannot be undone.</li></ul>
+<p>The app always <b>opens on the newest month</b>, the one you are living in. While you work, the month on screen stays put when you add notes or restore a file.</p>
+<hr>
+<h2 id="where-your-data-lives">Where your data lives</h2>
+<p>Worth knowing, because it is the difference between this and an app on your own machine.</p>
+<p>Your notes and your answers are stored in <b>DynamoDB, in your own AWS account</b>, in one table. Not on anyone else's server, not in a company's product, not anywhere a support engineer can read them. The application is a single function that runs for the length of one request and keeps nothing between calls.</p>
+<p><b>Nothing calculated is ever stored.</b> The table holds your notes exactly as you typed them, plus the decisions you made about them — and every total on every page is worked out fresh on each read. That is why improving a rule improves every month you have already saved, with no migration and no rebuild.</p>
+<p>The page itself holds no data at all: it asks the API for everything and draws what comes back. Where it is <i>served</i> from therefore matters very little, and there are two answers. A Terraform-built instance puts it in a private S3 bucket behind a CloudFront distribution, which is what gives it an HTTPS address. An instance whose distribution has not been built — a new AWS account cannot create one until AWS verifies it — serves the same file from your own machine with <code>python -m http.server 5173 --bind 127.0.0.1 --directory web</code>, against exactly the same API and the same table. Nothing else changes; <code>http://localhost:5173</code> is a legal Cognito callback, which is the one thing that makes it possible.</p>
+<p><b><code>--bind 127.0.0.1</code> is not optional.</b> Without it Python's server listens on every network interface, which puts the page on your home network for anyone else connected to it. There is nothing behind it without a login, and the page holds no figures of its own — but a thing that need not be reachable should not be reachable.</p>
+<hr>
+<h2 id="when-something-looks-wrong">When something looks wrong</h2>
+<p><b>A figure is in the wrong group.</b> Click it and move it. If it keeps landing wrongly in later months too, the fix is usually to rename or reroute a group so the word you write matches the group you mean.</p>
+<p><b>A total moved by 0.1 for no reason.</b> Each major group is rounded to one decimal and only then added up, so moving one line between groups can shift a total by a tenth. This is deliberate and matches how such figures are kept on paper.</p>
+<p><b>A month is missing.</b> It probably has no opening income line, so nothing told the app where it starts. Paste the notes again from the top of the note.</p>
+<p><b>A day appears twice.</b> It should not — the fuller copy replaces the shorter one. If it does, the two copies have different dates written on them.</p>
+<p><b>Everything is a question.</b> Usually the first month, and it settles quickly. If it does not, your notes probably use words the shipped rules have never seen, which is expected: answer them once each and the answers stick.</p>
+<p><b>The page says a month is closed.</b> It is more than three months old. Open it and use <i>Unlock this month</i>.</p>
+<p><b>The page says you are not signed in, or nothing loads.</b> Your session has expired. Sign in again; nothing is lost, because nothing was being held in the page.</p>
+<p><b>You cannot sign in at all.</b> See <a href="#signing-in">Signing in</a> — the way back is the AWS console for the account this instance belongs to.</p>

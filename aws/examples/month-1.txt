@@ -1,0 +1,84 @@
+10.01
++ 57 300
+9400 rent card
++ 210 do not count, refers to December
+Left: purse 6.8, account 61240
+
+11.01
+26 bus
+2340 grocer
+135 eggs and cheese
+26 bus
+Left: purse 4.3, account 61240
+
+12.01
+310 milk and fruit
+480 chemist
+1620 heating card
+Left: purse 3.5, account 59620
+
+13.01
+26 bus
+2860 grocer card
+900 doctor
+26 bus
+Left: purse 2.5, account 56760
+
+14.01
+9 500 atm
+390 vegetables
+160 taxi
+740 cinema
+Left: purse 10.7, account 47260
+
+16.01
+2740 grocer
+255 milk
+1430 dentist card
+620 cough syrup
+Left: purse 7.1, account 45830
+
+17.01
+26 bus
+330 cafe
+26 bus
+480 wine
+5000 savings card
+Left: purse 6.2, account 40830
+
+19.01
+460 fruit and cheese
+3120 grocer card
+850 fuel
+Left: purse 4.9, account 37710
+
+20.01
+1220 new shoes
+90 pie
+26 bus
+Left: purse 3.6, account 37710
+
+22.01
++ 1200 refund
+2610 grocer card
+215 pills
+Left: purse 3.4, account 36300
+
+24.01
+26 bus
+1150 train ticket card
+650 book
+420 soup and cafe
+Left: purse 2.3, account 35150
+
+26.01
+330 vegetables
+2650 grocer card
+560 chemist
+Left: purse 1.4, account 32500
+
+27.01
+26 bus
+310 fruit
+26 bus
+Left: purse 1, account 32500

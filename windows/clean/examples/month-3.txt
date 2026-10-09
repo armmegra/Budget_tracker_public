@@ -1,0 +1,77 @@
+10.03
++ 60 100
+9400 rent card
+Left: purse 0.2, account 99320
+
+11.03
+11 500 atm
+26 bus
+2690 grocer
+315 fruit and cheese
+26 bus
+Left: purse 8.6, account 87820
+
+12.03
+390 vegetables
+740 chemist
+1390 heating card
+Left: purse 7.5, account 86430
+
+13.03
+2560 grocer card
+170 milk
+Left: purse 7.3, account 83870
+
+15.03
+26 bus
+1240 doctor
+1120 umbrella and socks
+26 bus
+Left: purse 4.9, account 83870
+
+17.03
+2940 grocer card
+230 eggs
+5000 savings card
+Left: purse 4.7, account 75930
+
+18.03
+360 cafe
+26 bus
+1150 train ticket card
+Left: purse 4.3, account 74780
+
+20.03
++ 1700 refund
+2710 grocer card
+480 cough syrup
+Left: purse 3.8, account 73770
+
+22.03
+870 fuel
+26 bus
+1940 headphones card
+Left: purse 2.9, account 71830
+
+24.03
+310 milk and fruit
+560 pills
+Left: purse 2, account 71830
+
+25.03
+26 bus
+2380 grocer card
+180 soup
+26 bus
+Left: purse 1.8, account 69450
+
+26.03
+26 bus
+250 milk
+26 bus
+Left: purse 1.5, account 69450
+
+27.03
+420 cafe
+26 bus
+Left: purse 1.1, account 69450

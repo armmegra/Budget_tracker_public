@@ -1,0 +1,21 @@
+03.02
++ 61 800
+Left: purse 12, account 71400
+
+04.02
+410 vegetables
+26 bus
+1975 grocer card
+26 bus
+Left: purse 11.5, account 69425
+
+06.02
+2750 piano tuner
+260 cafe
+Left: purse 8.5, account 69425
+
+07.02
+910 pharmacy
+45 train ticket
+1320 garden centre
+Left: purse 6.2, account 69425

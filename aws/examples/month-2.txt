@@ -1,0 +1,79 @@
+10.02
++ 58 650
++ 340 do not count, previous month
+9400 rent card
+Left: purse 1, account 81750
+
+11.02
+26 bus
+2450 grocer card
+120 milk
+26 bus
+Left: purse 0.8, account 79300
+
+12.02
+620 cough syrup card
+280 cafe
+1560 heating card
+Left: purse 0.5, account 77120
+
+14.02
+9 000 atm
+26 bus
+2980 grocer card
+390 fruit
+26 bus
+Left: purse 9.1, account 65140
+
+15.02
+870 cinema and pie
+160 taxi
+Left: purse 8.1, account 65140
+
+17.02
+2620 grocer
+240 eggs
+1900 dentist card
+Left: purse 5.2, account 63240
+
+18.02
+26 bus
+310 soup and sandwich
+26 bus
+5000 savings card
+Left: purse 4.9, account 58240
+
+20.02
+3050 grocer card
+860 fuel
+290 chemist
+Left: purse 3.7, account 55190
+
+21.02
+980 haircut
+26 bus
+430 vegetables and rice
+Left: purse 2.3, account 55190
+
+23.02
++ 640 refund
+2710 grocer card
+175 pills
+Left: purse 2.1, account 53120
+
+25.02
+26 bus
+1150 train ticket card
+1480 new lamp
+Left: purse 0.6, account 51970
+
+26.02
+310 milk and cheese
+2830 grocer card
+Left: purse 0.3, account 49140
+
+27.02
+26 bus
+520 doctor card
+26 bus
+Left: purse 0.2, account 48620

@@ -1,0 +1,48 @@
+name: tests
+
+# The engine is the part that is hard to get right and easy to break, so its
+# suite runs on every push. No AWS credentials are involved: the suite touches
+# nothing in any account.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  aws:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aws
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install pytest
+        # The library itself has no dependencies.
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Run the suite
+        run: python -m pytest -q
+
+      # The deployment package, built from the sources that just passed, and
+      # attached to the run: only ever produced by a green build, and only for
+      # a push to this repository - a pull request gets its tests and no more.
+      - name: Build the Lambda package
+        if: github.event_name == 'push'
+        run: python scripts/build.py
+
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push'
+        with:
+          name: budget-lambda-${{ github.sha }}
+          path: aws/dist/budget-lambda.zip
+          retention-days: 90
+          if-no-files-found: error

@@ -1,0 +1,6 @@
+# One line ending in every checkout, on any system, so that the files are byte
+# for byte what the tests were run on.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.exe binary

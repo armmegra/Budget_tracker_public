@@ -1,0 +1,34 @@
+[project]
+name = "budget-tracker"
+version = "0.3.0"
+description = "A private budget book: notes in, a month out. Works offline."
+requires-python = ">=3.12"
+authors = [{ name = "Budget tracker" }]
+# pyjnius: how send.py hands the configuration file straight to Telegram or
+# WhatsApp through Android itself.
+dependencies = ["flet>=1.0.0", "pyjnius"]
+
+[tool.flet]
+org = "local.budgettracker"
+product = "Budget"
+company = "Budget tracker"
+copyright = "Budget tracker"
+# Behind the icon wherever transparency cannot survive: the Android
+# background layer and the iOS icon.
+icon_background = "#0f766e"
+
+[tool.flet.app]
+path = "src"
+
+# No network at all: Flet asks for the internet and a
+# bundled plugin for the network state by default; `false` removes both from the
+# app, so Android refuses the app any socket - nothing can listen or connect.
+[tool.flet.android.permission]
+"android.permission.INTERNET" = false
+"android.permission.ACCESS_NETWORK_STATE" = false
+
+# Nothing of the budget copied to a Google account by Android's automatic
+# backup: the configuration file the user saves is the only copy.
+[tool.flet.android.manifest_application]
+allowBackup = "false"
+fullBackupContent = "false"

@@ -1,0 +1,20 @@
+# Somebody's own notes and logins. Never committed.
+data/
+
+# Built or downloaded, never kept in history.
+__pycache__/
+*.pyc
+.pytest_cache/
+dist/
+build/
+vendor/
+
+# Terraform's working files, and the settings of one machine.
+.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
+*.auto.tfvars
+
+# Names a live instance; written per instance.
+aws/web/config.js
